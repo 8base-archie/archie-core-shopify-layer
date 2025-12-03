@@ -1,0 +1,17 @@
+type Mutation {
+  # Authentication & Configuration
+  configureShopify(clientId: String!, clientSecret: String!, scopes: [String!]!): Boolean!
+  shopify_generateAuthUrl(shop: String!): String!
+  shopify_exchangeAuthCode(code: String!, shop: String!): Boolean!
+  
+  # Storefront Token
+  shopify_getStorefrontToken(shop: String!): String!
+
+  # Webhook Testing (Optional, for dev)
+  # shopify_simulateWebhook(topic: String!, payload: String!): Boolean!
+}
+
+type Query {
+  # Health check
+  shopify_health: String!
+}

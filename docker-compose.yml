@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: shopify-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: shopify_dev
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - shopify-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: shopify-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - shopify-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopify-app
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_DATABASE=shopify_dev
+      - REDIS_ADDR=redis:6379
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+      - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET}
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - PORT=8080
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - shopify-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  redis_data:
+
+networks:
+  shopify-network:
+    driver: bridge

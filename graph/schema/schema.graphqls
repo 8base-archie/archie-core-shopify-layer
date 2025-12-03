@@ -1,0 +1,142 @@
+scalar Time
+
+# Shop represents a Shopify store
+type Shop {
+  id: ID!
+  domain: String!
+  scopes: [String!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Product represents a Shopify product
+type Product {
+  id: ID!
+  title: String!
+  handle: String
+  vendor: String
+  productType: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Order represents a Shopify order
+type Order {
+  id: ID!
+  orderNumber: Int!
+  email: String
+  totalPrice: String!
+  financialStatus: String
+  fulfillmentStatus: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Customer represents a Shopify customer
+type Customer {
+  id: ID!
+  email: String
+  firstName: String
+  lastName: String
+  ordersCount: Int
+  totalSpent: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# InventoryLevel represents inventory information
+type InventoryLevel {
+  inventoryItemId: ID!
+  locationId: ID!
+  available: Int
+  updatedAt: Time!
+}
+
+# WebhookEvent represents a received webhook
+type WebhookEvent {
+  id: ID!
+  topic: String!
+  shop: String!
+  verified: Boolean!
+  createdAt: Time!
+}
+
+# ShopifyCredentials represents API credentials
+type ShopifyCredentials {
+  id: ID!
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Input for installing the Shopify app
+input InstallAppInput {
+  shop: String!
+  scopes: [String!]!
+}
+
+# Payload returned after generating auth URL
+type InstallAppPayload {
+  authUrl: String!
+}
+
+# Input for exchanging authorization code for access token
+input ExchangeTokenInput {
+  shop: String!
+  code: String!
+}
+
+# Payload returned after token exchange
+type ExchangeTokenPayload {
+  shop: Shop!
+  accessToken: String!
+}
+
+# Input for configuring credentials
+input ConfigureCredentialsInput {
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  apiSecret: String!
+}
+
+# Payload returned after configuring credentials
+type ConfigureCredentialsPayload {
+  credentials: ShopifyCredentials!
+}
+
+type Query {
+  # Shop operations
+  shopify_shop(domain: String!): Shop
+  
+  # Product operations
+  shopify_products(domain: String!): [Product!]!
+  shopify_product(domain: String!, productId: ID!): Product
+  
+  # Order operations
+  shopify_orders(domain: String!): [Order!]!
+  shopify_order(domain: String!, orderId: ID!): Order
+  
+  # Customer operations
+  shopify_customers(domain: String!): [Customer!]!
+  shopify_customer(domain: String!, customerId: ID!): Customer
+  shopify_searchCustomers(domain: String!, query: String!): [Customer!]!
+  
+  # Inventory operations
+  shopify_inventoryLevels(domain: String!): [InventoryLevel!]!
+  
+  # Credentials operations
+  shopify_getCredentials(projectId: String!, environment: String!): ShopifyCredentials
+}
+
+type Mutation {
+  # Auth operations
+  shopify_installApp(input: InstallAppInput!): InstallAppPayload!
+  shopify_exchangeToken(input: ExchangeTokenInput!): ExchangeTokenPayload!
+  
+  # Credentials operations
+  shopify_configureCredentials(input: ConfigureCredentialsInput!): ConfigureCredentialsPayload!
+  shopify_deleteCredentials(projectId: String!, environment: String!): Boolean!
+}

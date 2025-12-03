@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopify-config
+data:
+  MONGODB_DATABASE: "shopify_prod"
+  APP_URL: "https://your-domain.com"
+  PORT: "8080"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: shopify-secrets
+type: Opaque
+stringData:
+  mongodb-uri: "mongodb://username:password@mongodb:27017"
+  api-key: "your-shopify-api-key"
+  api-secret: "your-shopify-api-secret"

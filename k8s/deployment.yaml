@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopify-app
+  labels:
+    app: shopify-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: shopify-app
+  template:
+    metadata:
+      labels:
+        app: shopify-app
+    spec:
+      containers:
+      - name: shopify-app
+        image: shopify-app:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: shopify-secrets
+              key: mongodb-uri
+        - name: MONGODB_DATABASE
+          value: "shopify_prod"
+        - name: REDIS_ADDR
+          value: "redis:6379"
+        - name: SHOPIFY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: shopify-secrets
+              key: api-key
+        - name: SHOPIFY_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: shopify-secrets
+              key: api-secret
+        - name: APP_URL
+          value: "https://your-domain.com"
+        - name: PORT
+          value: "8080"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shopify-app
+spec:
+  selector:
+    app: shopify-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: shopify-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shopify-app
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

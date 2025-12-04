@@ -8,24 +8,41 @@ import (
 	"archie-core-shopify-layer/internal/ports"
 
 	goshopify "github.com/bold-commerce/go-shopify/v4"
+	"github.com/rs/zerolog"
 )
 
 type client struct {
-	apiKey    string
-	apiSecret string
-	app       goshopify.App
+	apiKey      string
+	apiSecret   string
+	app         goshopify.App
+	rateLimiter *RateLimiter
+	retryConfig RetryConfig
+	logger      zerolog.Logger
 }
 
 // NewClient creates a new Shopify client adapter
 func NewClient(apiKey, apiSecret string) ports.ShopifyClient {
+	return NewClientWithOptions(apiKey, apiSecret, nil, DefaultRetryConfig(), zerolog.Nop())
+}
+
+// NewClientWithOptions creates a client with rate limiting and retry options
+func NewClientWithOptions(
+	apiKey, apiSecret string,
+	rateLimiter *RateLimiter,
+	retryConfig RetryConfig,
+	logger zerolog.Logger,
+) ports.ShopifyClient {
 	app := goshopify.App{
 		ApiKey:    apiKey,
 		ApiSecret: apiSecret,
 	}
 	return &client{
-		apiKey:    apiKey,
-		apiSecret: apiSecret,
-		app:       app,
+		apiKey:      apiKey,
+		apiSecret:   apiSecret,
+		app:         app,
+		rateLimiter: rateLimiter,
+		retryConfig: retryConfig,
+		logger:      logger,
 	}
 }
 
@@ -290,4 +307,300 @@ func (c *client) UpdateInventoryLevel(ctx context.Context, shopDomain string, ac
 		return nil, fmt.Errorf("failed to update inventory level: %w", err)
 	}
 	return updated, nil
+}
+
+// Webhook API
+
+func (c *client) CreateWebhook(ctx context.Context, shopDomain string, accessToken string, topic string, address string) (*goshopify.Webhook, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	webhook := goshopify.Webhook{
+		Topic:   topic,
+		Address: address,
+		Format:  "json",
+	}
+	created, err := client.Webhook.Create(ctx, webhook)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create webhook: %w", err)
+	}
+	return created, nil
+}
+
+func (c *client) GetWebhook(ctx context.Context, shopDomain string, accessToken string, webhookID int64) (*goshopify.Webhook, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	webhook, err := client.Webhook.Get(ctx, uint64(webhookID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get webhook: %w", err)
+	}
+	return webhook, nil
+}
+
+func (c *client) ListWebhooks(ctx context.Context, shopDomain string, accessToken string, options interface{}) ([]goshopify.Webhook, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	webhooks, err := client.Webhook.List(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list webhooks: %w", err)
+	}
+	return webhooks, nil
+}
+
+func (c *client) UpdateWebhook(ctx context.Context, shopDomain string, accessToken string, webhookID int64, address string) (*goshopify.Webhook, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	// First get the webhook to preserve other fields
+	existing, err := client.Webhook.Get(ctx, uint64(webhookID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get webhook for update: %w", err)
+	}
+	// Update address
+	existing.Address = address
+	updated, err := client.Webhook.Update(ctx, *existing)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update webhook: %w", err)
+	}
+	return updated, nil
+}
+
+func (c *client) DeleteWebhook(ctx context.Context, shopDomain string, accessToken string, webhookID int64) error {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return err
+	}
+	err = client.Webhook.Delete(ctx, uint64(webhookID))
+	if err != nil {
+		return fmt.Errorf("failed to delete webhook: %w", err)
+	}
+	return nil
+}
+
+// Collection API
+
+func (c *client) GetCollection(ctx context.Context, shopDomain string, accessToken string, collectionID int64) (*goshopify.Collection, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := client.Collection.Get(ctx, uint64(collectionID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collection: %w", err)
+	}
+	return collection, nil
+}
+
+func (c *client) ListCollectionProducts(ctx context.Context, shopDomain string, accessToken string, collectionID int64, options interface{}) ([]goshopify.Product, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	products, err := client.Collection.ListProducts(ctx, uint64(collectionID), options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list collection products: %w", err)
+	}
+	return products, nil
+}
+
+func (c *client) GetCustomCollection(ctx context.Context, shopDomain string, accessToken string, collectionID int64) (*goshopify.CustomCollection, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := client.CustomCollection.Get(ctx, uint64(collectionID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get custom collection: %w", err)
+	}
+	return collection, nil
+}
+
+func (c *client) ListCustomCollections(ctx context.Context, shopDomain string, accessToken string, options interface{}) ([]goshopify.CustomCollection, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	collections, err := client.CustomCollection.List(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list custom collections: %w", err)
+	}
+	return collections, nil
+}
+
+func (c *client) CreateCustomCollection(ctx context.Context, shopDomain string, accessToken string, collection *goshopify.CustomCollection) (*goshopify.CustomCollection, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	created, err := client.CustomCollection.Create(ctx, *collection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create custom collection: %w", err)
+	}
+	return created, nil
+}
+
+func (c *client) UpdateCustomCollection(ctx context.Context, shopDomain string, accessToken string, collection *goshopify.CustomCollection) (*goshopify.CustomCollection, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := client.CustomCollection.Update(ctx, *collection)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update custom collection: %w", err)
+	}
+	return updated, nil
+}
+
+func (c *client) DeleteCustomCollection(ctx context.Context, shopDomain string, accessToken string, collectionID int64) error {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return err
+	}
+	err = client.CustomCollection.Delete(ctx, uint64(collectionID))
+	if err != nil {
+		return fmt.Errorf("failed to delete custom collection: %w", err)
+	}
+	return nil
+}
+
+// Fulfillment API
+
+func (c *client) ListFulfillments(ctx context.Context, shopDomain string, accessToken string, options interface{}) ([]goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	fulfillments, err := client.Fulfillment.List(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list fulfillments: %w", err)
+	}
+	return fulfillments, nil
+}
+
+func (c *client) GetFulfillment(ctx context.Context, shopDomain string, accessToken string, fulfillmentID int64) (*goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	fulfillment, err := client.Fulfillment.Get(ctx, uint64(fulfillmentID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get fulfillment: %w", err)
+	}
+	return fulfillment, nil
+}
+
+func (c *client) CreateFulfillment(ctx context.Context, shopDomain string, accessToken string, fulfillment *goshopify.Fulfillment) (*goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	created, err := client.Fulfillment.Create(ctx, *fulfillment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fulfillment: %w", err)
+	}
+	return created, nil
+}
+
+func (c *client) UpdateFulfillment(ctx context.Context, shopDomain string, accessToken string, fulfillment *goshopify.Fulfillment) (*goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := client.Fulfillment.Update(ctx, *fulfillment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update fulfillment: %w", err)
+	}
+	return updated, nil
+}
+
+func (c *client) CompleteFulfillment(ctx context.Context, shopDomain string, accessToken string, fulfillmentID int64) (*goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	fulfillment, err := client.Fulfillment.Complete(ctx, uint64(fulfillmentID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to complete fulfillment: %w", err)
+	}
+	return fulfillment, nil
+}
+
+func (c *client) CancelFulfillment(ctx context.Context, shopDomain string, accessToken string, fulfillmentID int64) (*goshopify.Fulfillment, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	fulfillment, err := client.Fulfillment.Cancel(ctx, uint64(fulfillmentID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel fulfillment: %w", err)
+	}
+	return fulfillment, nil
+}
+
+// Discount Code API
+
+func (c *client) ListDiscountCodes(ctx context.Context, shopDomain string, accessToken string, priceRuleID int64) ([]goshopify.PriceRuleDiscountCode, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	codes, err := client.DiscountCode.List(ctx, uint64(priceRuleID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list discount codes: %w", err)
+	}
+	return codes, nil
+}
+
+func (c *client) GetDiscountCode(ctx context.Context, shopDomain string, accessToken string, priceRuleID int64, discountCodeID int64) (*goshopify.PriceRuleDiscountCode, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	code, err := client.DiscountCode.Get(ctx, uint64(priceRuleID), uint64(discountCodeID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get discount code: %w", err)
+	}
+	return code, nil
+}
+
+func (c *client) CreateDiscountCode(ctx context.Context, shopDomain string, accessToken string, priceRuleID int64, discountCode *goshopify.PriceRuleDiscountCode) (*goshopify.PriceRuleDiscountCode, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	created, err := client.DiscountCode.Create(ctx, uint64(priceRuleID), *discountCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create discount code: %w", err)
+	}
+	return created, nil
+}
+
+func (c *client) UpdateDiscountCode(ctx context.Context, shopDomain string, accessToken string, priceRuleID int64, discountCode *goshopify.PriceRuleDiscountCode) (*goshopify.PriceRuleDiscountCode, error) {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := client.DiscountCode.Update(ctx, uint64(priceRuleID), *discountCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update discount code: %w", err)
+	}
+	return updated, nil
+}
+
+func (c *client) DeleteDiscountCode(ctx context.Context, shopDomain string, accessToken string, priceRuleID int64, discountCodeID int64) error {
+	client, err := c.createClient(shopDomain, accessToken)
+	if err != nil {
+		return err
+	}
+	err = client.DiscountCode.Delete(ctx, uint64(priceRuleID), uint64(discountCodeID))
+	if err != nil {
+		return fmt.Errorf("failed to delete discount code: %w", err)
+	}
+	return nil
 }

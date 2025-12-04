@@ -94,7 +94,32 @@ type ExchangeTokenPayload {
   accessToken: String!
 }
 
-# Input for configuring credentials
+# ShopifyConfig represents Shopify configuration
+type ShopifyConfig {
+  id: ID!
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  webhookUrl: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Input for configuring Shopify
+input ConfigureShopifyInput {
+  apiKey: String!
+  apiSecret: String!
+  webhookSecret: String
+}
+
+# Payload returned after configuring Shopify
+type ConfigureShopifyPayload {
+  id: ID!
+  apiKey: String!
+  webhookUrl: String!
+}
+
+# Input for configuring credentials (deprecated - use ConfigureShopifyInput)
 input ConfigureCredentialsInput {
   projectId: String!
   environment: String!
@@ -102,7 +127,7 @@ input ConfigureCredentialsInput {
   apiSecret: String!
 }
 
-# Payload returned after configuring credentials
+# Payload returned after configuring credentials (deprecated)
 type ConfigureCredentialsPayload {
   credentials: ShopifyCredentials!
 }
@@ -127,16 +152,22 @@ type Query {
   # Inventory operations
   shopify_inventoryLevels(domain: String!): [InventoryLevel!]!
   
-  # Credentials operations
+  # Configuration operations
+  shopify_getConfig: ShopifyConfig
+  
+  # Credentials operations (deprecated)
   shopify_getCredentials(projectId: String!, environment: String!): ShopifyCredentials
 }
 
 type Mutation {
+  # Configuration operations
+  configureShopify(input: ConfigureShopifyInput!): ConfigureShopifyPayload!
+  
   # Auth operations
   shopify_installApp(input: InstallAppInput!): InstallAppPayload!
   shopify_exchangeToken(input: ExchangeTokenInput!): ExchangeTokenPayload!
   
-  # Credentials operations
+  # Credentials operations (deprecated - use configureShopify)
   shopify_configureCredentials(input: ConfigureCredentialsInput!): ConfigureCredentialsPayload!
   shopify_deleteCredentials(projectId: String!, environment: String!): Boolean!
 }

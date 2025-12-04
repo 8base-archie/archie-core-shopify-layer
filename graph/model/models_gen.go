@@ -6,6 +6,40 @@ import (
 	"archie-core-shopify-layer/graph/scalars"
 )
 
+type ConfigureCredentialsInput struct {
+	ProjectID   string `json:"projectId"`
+	Environment string `json:"environment"`
+	APIKey      string `json:"apiKey"`
+	APISecret   string `json:"apiSecret"`
+}
+
+type ConfigureCredentialsPayload struct {
+	Credentials *ShopifyCredentials `json:"credentials"`
+}
+
+type ConfigureShopifyInput struct {
+	APIKey        string  `json:"apiKey"`
+	APISecret     string  `json:"apiSecret"`
+	WebhookSecret *string `json:"webhookSecret,omitempty"`
+}
+
+type ConfigureShopifyPayload struct {
+	ID         string `json:"id"`
+	APIKey     string `json:"apiKey"`
+	WebhookURL string `json:"webhookUrl"`
+}
+
+type Customer struct {
+	ID          string       `json:"id"`
+	Email       *string      `json:"email,omitempty"`
+	FirstName   *string      `json:"firstName,omitempty"`
+	LastName    *string      `json:"lastName,omitempty"`
+	OrdersCount *int         `json:"ordersCount,omitempty"`
+	TotalSpent  *string      `json:"totalSpent,omitempty"`
+	CreatedAt   scalars.Time `json:"createdAt"`
+	UpdatedAt   scalars.Time `json:"updatedAt"`
+}
+
 type ExchangeTokenInput struct {
 	Shop string `json:"shop"`
 	Code string `json:"code"`
@@ -25,7 +59,25 @@ type InstallAppPayload struct {
 	AuthURL string `json:"authUrl"`
 }
 
+type InventoryLevel struct {
+	InventoryItemID string       `json:"inventoryItemId"`
+	LocationID      string       `json:"locationId"`
+	Available       *int         `json:"available,omitempty"`
+	UpdatedAt       scalars.Time `json:"updatedAt"`
+}
+
 type Mutation struct {
+}
+
+type Order struct {
+	ID                string       `json:"id"`
+	OrderNumber       int          `json:"orderNumber"`
+	Email             *string      `json:"email,omitempty"`
+	TotalPrice        string       `json:"totalPrice"`
+	FinancialStatus   *string      `json:"financialStatus,omitempty"`
+	FulfillmentStatus *string      `json:"fulfillmentStatus,omitempty"`
+	CreatedAt         scalars.Time `json:"createdAt"`
+	UpdatedAt         scalars.Time `json:"updatedAt"`
 }
 
 type Product struct {
@@ -47,6 +99,25 @@ type Shop struct {
 	Scopes    []string     `json:"scopes"`
 	CreatedAt scalars.Time `json:"createdAt"`
 	UpdatedAt scalars.Time `json:"updatedAt"`
+}
+
+type ShopifyConfig struct {
+	ID          string       `json:"id"`
+	ProjectID   string       `json:"projectId"`
+	Environment string       `json:"environment"`
+	APIKey      string       `json:"apiKey"`
+	WebhookURL  string       `json:"webhookUrl"`
+	CreatedAt   scalars.Time `json:"createdAt"`
+	UpdatedAt   scalars.Time `json:"updatedAt"`
+}
+
+type ShopifyCredentials struct {
+	ID          string       `json:"id"`
+	ProjectID   string       `json:"projectId"`
+	Environment string       `json:"environment"`
+	APIKey      string       `json:"apiKey"`
+	CreatedAt   scalars.Time `json:"createdAt"`
+	UpdatedAt   scalars.Time `json:"updatedAt"`
 }
 
 type WebhookEvent struct {

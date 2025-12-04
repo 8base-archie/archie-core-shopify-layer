@@ -47,6 +47,27 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	ConfigureCredentialsPayload struct {
+		Credentials func(childComplexity int) int
+	}
+
+	ConfigureShopifyPayload struct {
+		APIKey     func(childComplexity int) int
+		ID         func(childComplexity int) int
+		WebhookURL func(childComplexity int) int
+	}
+
+	Customer struct {
+		CreatedAt   func(childComplexity int) int
+		Email       func(childComplexity int) int
+		FirstName   func(childComplexity int) int
+		ID          func(childComplexity int) int
+		LastName    func(childComplexity int) int
+		OrdersCount func(childComplexity int) int
+		TotalSpent  func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
+	}
+
 	ExchangeTokenPayload struct {
 		AccessToken func(childComplexity int) int
 		Shop        func(childComplexity int) int
@@ -56,9 +77,30 @@ type ComplexityRoot struct {
 		AuthURL func(childComplexity int) int
 	}
 
+	InventoryLevel struct {
+		Available       func(childComplexity int) int
+		InventoryItemID func(childComplexity int) int
+		LocationID      func(childComplexity int) int
+		UpdatedAt       func(childComplexity int) int
+	}
+
 	Mutation struct {
-		ShopifyExchangeToken func(childComplexity int, input model.ExchangeTokenInput) int
-		ShopifyInstallApp    func(childComplexity int, input model.InstallAppInput) int
+		ConfigureShopify            func(childComplexity int, input model.ConfigureShopifyInput) int
+		ShopifyConfigureCredentials func(childComplexity int, input model.ConfigureCredentialsInput) int
+		ShopifyDeleteCredentials    func(childComplexity int, projectID string, environment string) int
+		ShopifyExchangeToken        func(childComplexity int, input model.ExchangeTokenInput) int
+		ShopifyInstallApp           func(childComplexity int, input model.InstallAppInput) int
+	}
+
+	Order struct {
+		CreatedAt         func(childComplexity int) int
+		Email             func(childComplexity int) int
+		FinancialStatus   func(childComplexity int) int
+		FulfillmentStatus func(childComplexity int) int
+		ID                func(childComplexity int) int
+		OrderNumber       func(childComplexity int) int
+		TotalPrice        func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
 	}
 
 	Product struct {
@@ -72,8 +114,17 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ShopifyProducts func(childComplexity int, domain string) int
-		ShopifyShop     func(childComplexity int, domain string) int
+		ShopifyCustomer        func(childComplexity int, domain string, customerID string) int
+		ShopifyCustomers       func(childComplexity int, domain string) int
+		ShopifyGetConfig       func(childComplexity int) int
+		ShopifyGetCredentials  func(childComplexity int, projectID string, environment string) int
+		ShopifyInventoryLevels func(childComplexity int, domain string) int
+		ShopifyOrder           func(childComplexity int, domain string, orderID string) int
+		ShopifyOrders          func(childComplexity int, domain string) int
+		ShopifyProduct         func(childComplexity int, domain string, productID string) int
+		ShopifyProducts        func(childComplexity int, domain string) int
+		ShopifySearchCustomers func(childComplexity int, domain string, query string) int
+		ShopifyShop            func(childComplexity int, domain string) int
 	}
 
 	Shop struct {
@@ -82,6 +133,25 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		Scopes    func(childComplexity int) int
 		UpdatedAt func(childComplexity int) int
+	}
+
+	ShopifyConfig struct {
+		APIKey      func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		Environment func(childComplexity int) int
+		ID          func(childComplexity int) int
+		ProjectID   func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
+		WebhookURL  func(childComplexity int) int
+	}
+
+	ShopifyCredentials struct {
+		APIKey      func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		Environment func(childComplexity int) int
+		ID          func(childComplexity int) int
+		ProjectID   func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
 	}
 
 	WebhookEvent struct {
@@ -94,12 +164,24 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
+	ConfigureShopify(ctx context.Context, input model.ConfigureShopifyInput) (*model.ConfigureShopifyPayload, error)
 	ShopifyInstallApp(ctx context.Context, input model.InstallAppInput) (*model.InstallAppPayload, error)
 	ShopifyExchangeToken(ctx context.Context, input model.ExchangeTokenInput) (*model.ExchangeTokenPayload, error)
+	ShopifyConfigureCredentials(ctx context.Context, input model.ConfigureCredentialsInput) (*model.ConfigureCredentialsPayload, error)
+	ShopifyDeleteCredentials(ctx context.Context, projectID string, environment string) (bool, error)
 }
 type QueryResolver interface {
 	ShopifyShop(ctx context.Context, domain string) (*model.Shop, error)
 	ShopifyProducts(ctx context.Context, domain string) ([]*model.Product, error)
+	ShopifyProduct(ctx context.Context, domain string, productID string) (*model.Product, error)
+	ShopifyOrders(ctx context.Context, domain string) ([]*model.Order, error)
+	ShopifyOrder(ctx context.Context, domain string, orderID string) (*model.Order, error)
+	ShopifyCustomers(ctx context.Context, domain string) ([]*model.Customer, error)
+	ShopifyCustomer(ctx context.Context, domain string, customerID string) (*model.Customer, error)
+	ShopifySearchCustomers(ctx context.Context, domain string, query string) ([]*model.Customer, error)
+	ShopifyInventoryLevels(ctx context.Context, domain string) ([]*model.InventoryLevel, error)
+	ShopifyGetConfig(ctx context.Context) (*model.ShopifyConfig, error)
+	ShopifyGetCredentials(ctx context.Context, projectID string, environment string) (*model.ShopifyCredentials, error)
 }
 
 type executableSchema struct {
@@ -121,6 +203,81 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "ConfigureCredentialsPayload.credentials":
+		if e.complexity.ConfigureCredentialsPayload.Credentials == nil {
+			break
+		}
+
+		return e.complexity.ConfigureCredentialsPayload.Credentials(childComplexity), true
+
+	case "ConfigureShopifyPayload.apiKey":
+		if e.complexity.ConfigureShopifyPayload.APIKey == nil {
+			break
+		}
+
+		return e.complexity.ConfigureShopifyPayload.APIKey(childComplexity), true
+	case "ConfigureShopifyPayload.id":
+		if e.complexity.ConfigureShopifyPayload.ID == nil {
+			break
+		}
+
+		return e.complexity.ConfigureShopifyPayload.ID(childComplexity), true
+	case "ConfigureShopifyPayload.webhookUrl":
+		if e.complexity.ConfigureShopifyPayload.WebhookURL == nil {
+			break
+		}
+
+		return e.complexity.ConfigureShopifyPayload.WebhookURL(childComplexity), true
+
+	case "Customer.createdAt":
+		if e.complexity.Customer.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Customer.CreatedAt(childComplexity), true
+	case "Customer.email":
+		if e.complexity.Customer.Email == nil {
+			break
+		}
+
+		return e.complexity.Customer.Email(childComplexity), true
+	case "Customer.firstName":
+		if e.complexity.Customer.FirstName == nil {
+			break
+		}
+
+		return e.complexity.Customer.FirstName(childComplexity), true
+	case "Customer.id":
+		if e.complexity.Customer.ID == nil {
+			break
+		}
+
+		return e.complexity.Customer.ID(childComplexity), true
+	case "Customer.lastName":
+		if e.complexity.Customer.LastName == nil {
+			break
+		}
+
+		return e.complexity.Customer.LastName(childComplexity), true
+	case "Customer.ordersCount":
+		if e.complexity.Customer.OrdersCount == nil {
+			break
+		}
+
+		return e.complexity.Customer.OrdersCount(childComplexity), true
+	case "Customer.totalSpent":
+		if e.complexity.Customer.TotalSpent == nil {
+			break
+		}
+
+		return e.complexity.Customer.TotalSpent(childComplexity), true
+	case "Customer.updatedAt":
+		if e.complexity.Customer.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Customer.UpdatedAt(childComplexity), true
+
 	case "ExchangeTokenPayload.accessToken":
 		if e.complexity.ExchangeTokenPayload.AccessToken == nil {
 			break
@@ -141,6 +298,64 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.InstallAppPayload.AuthURL(childComplexity), true
 
+	case "InventoryLevel.available":
+		if e.complexity.InventoryLevel.Available == nil {
+			break
+		}
+
+		return e.complexity.InventoryLevel.Available(childComplexity), true
+	case "InventoryLevel.inventoryItemId":
+		if e.complexity.InventoryLevel.InventoryItemID == nil {
+			break
+		}
+
+		return e.complexity.InventoryLevel.InventoryItemID(childComplexity), true
+	case "InventoryLevel.locationId":
+		if e.complexity.InventoryLevel.LocationID == nil {
+			break
+		}
+
+		return e.complexity.InventoryLevel.LocationID(childComplexity), true
+	case "InventoryLevel.updatedAt":
+		if e.complexity.InventoryLevel.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.InventoryLevel.UpdatedAt(childComplexity), true
+
+	case "Mutation.configureShopify":
+		if e.complexity.Mutation.ConfigureShopify == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_configureShopify_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConfigureShopify(childComplexity, args["input"].(model.ConfigureShopifyInput)), true
+	case "Mutation.shopify_configureCredentials":
+		if e.complexity.Mutation.ShopifyConfigureCredentials == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_shopify_configureCredentials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ShopifyConfigureCredentials(childComplexity, args["input"].(model.ConfigureCredentialsInput)), true
+	case "Mutation.shopify_deleteCredentials":
+		if e.complexity.Mutation.ShopifyDeleteCredentials == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_shopify_deleteCredentials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ShopifyDeleteCredentials(childComplexity, args["projectId"].(string), args["environment"].(string)), true
 	case "Mutation.shopify_exchangeToken":
 		if e.complexity.Mutation.ShopifyExchangeToken == nil {
 			break
@@ -163,6 +378,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ShopifyInstallApp(childComplexity, args["input"].(model.InstallAppInput)), true
+
+	case "Order.createdAt":
+		if e.complexity.Order.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Order.CreatedAt(childComplexity), true
+	case "Order.email":
+		if e.complexity.Order.Email == nil {
+			break
+		}
+
+		return e.complexity.Order.Email(childComplexity), true
+	case "Order.financialStatus":
+		if e.complexity.Order.FinancialStatus == nil {
+			break
+		}
+
+		return e.complexity.Order.FinancialStatus(childComplexity), true
+	case "Order.fulfillmentStatus":
+		if e.complexity.Order.FulfillmentStatus == nil {
+			break
+		}
+
+		return e.complexity.Order.FulfillmentStatus(childComplexity), true
+	case "Order.id":
+		if e.complexity.Order.ID == nil {
+			break
+		}
+
+		return e.complexity.Order.ID(childComplexity), true
+	case "Order.orderNumber":
+		if e.complexity.Order.OrderNumber == nil {
+			break
+		}
+
+		return e.complexity.Order.OrderNumber(childComplexity), true
+	case "Order.totalPrice":
+		if e.complexity.Order.TotalPrice == nil {
+			break
+		}
+
+		return e.complexity.Order.TotalPrice(childComplexity), true
+	case "Order.updatedAt":
+		if e.complexity.Order.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Order.UpdatedAt(childComplexity), true
 
 	case "Product.createdAt":
 		if e.complexity.Product.CreatedAt == nil {
@@ -207,6 +471,89 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Product.Vendor(childComplexity), true
 
+	case "Query.shopify_customer":
+		if e.complexity.Query.ShopifyCustomer == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_customer_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyCustomer(childComplexity, args["domain"].(string), args["customerId"].(string)), true
+	case "Query.shopify_customers":
+		if e.complexity.Query.ShopifyCustomers == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_customers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyCustomers(childComplexity, args["domain"].(string)), true
+	case "Query.shopify_getConfig":
+		if e.complexity.Query.ShopifyGetConfig == nil {
+			break
+		}
+
+		return e.complexity.Query.ShopifyGetConfig(childComplexity), true
+	case "Query.shopify_getCredentials":
+		if e.complexity.Query.ShopifyGetCredentials == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_getCredentials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyGetCredentials(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+	case "Query.shopify_inventoryLevels":
+		if e.complexity.Query.ShopifyInventoryLevels == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_inventoryLevels_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyInventoryLevels(childComplexity, args["domain"].(string)), true
+	case "Query.shopify_order":
+		if e.complexity.Query.ShopifyOrder == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_order_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyOrder(childComplexity, args["domain"].(string), args["orderId"].(string)), true
+	case "Query.shopify_orders":
+		if e.complexity.Query.ShopifyOrders == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_orders_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyOrders(childComplexity, args["domain"].(string)), true
+	case "Query.shopify_product":
+		if e.complexity.Query.ShopifyProduct == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_product_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifyProduct(childComplexity, args["domain"].(string), args["productId"].(string)), true
 	case "Query.shopify_products":
 		if e.complexity.Query.ShopifyProducts == nil {
 			break
@@ -218,6 +565,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.ShopifyProducts(childComplexity, args["domain"].(string)), true
+	case "Query.shopify_searchCustomers":
+		if e.complexity.Query.ShopifySearchCustomers == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shopify_searchCustomers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ShopifySearchCustomers(childComplexity, args["domain"].(string), args["query"].(string)), true
 	case "Query.shopify_shop":
 		if e.complexity.Query.ShopifyShop == nil {
 			break
@@ -261,6 +619,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Shop.UpdatedAt(childComplexity), true
 
+	case "ShopifyConfig.apiKey":
+		if e.complexity.ShopifyConfig.APIKey == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.APIKey(childComplexity), true
+	case "ShopifyConfig.createdAt":
+		if e.complexity.ShopifyConfig.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.CreatedAt(childComplexity), true
+	case "ShopifyConfig.environment":
+		if e.complexity.ShopifyConfig.Environment == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.Environment(childComplexity), true
+	case "ShopifyConfig.id":
+		if e.complexity.ShopifyConfig.ID == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.ID(childComplexity), true
+	case "ShopifyConfig.projectId":
+		if e.complexity.ShopifyConfig.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.ProjectID(childComplexity), true
+	case "ShopifyConfig.updatedAt":
+		if e.complexity.ShopifyConfig.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.UpdatedAt(childComplexity), true
+	case "ShopifyConfig.webhookUrl":
+		if e.complexity.ShopifyConfig.WebhookURL == nil {
+			break
+		}
+
+		return e.complexity.ShopifyConfig.WebhookURL(childComplexity), true
+
+	case "ShopifyCredentials.apiKey":
+		if e.complexity.ShopifyCredentials.APIKey == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.APIKey(childComplexity), true
+	case "ShopifyCredentials.createdAt":
+		if e.complexity.ShopifyCredentials.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.CreatedAt(childComplexity), true
+	case "ShopifyCredentials.environment":
+		if e.complexity.ShopifyCredentials.Environment == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.Environment(childComplexity), true
+	case "ShopifyCredentials.id":
+		if e.complexity.ShopifyCredentials.ID == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.ID(childComplexity), true
+	case "ShopifyCredentials.projectId":
+		if e.complexity.ShopifyCredentials.ProjectID == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.ProjectID(childComplexity), true
+	case "ShopifyCredentials.updatedAt":
+		if e.complexity.ShopifyCredentials.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.ShopifyCredentials.UpdatedAt(childComplexity), true
+
 	case "WebhookEvent.createdAt":
 		if e.complexity.WebhookEvent.CreatedAt == nil {
 			break
@@ -300,6 +738,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputConfigureCredentialsInput,
+		ec.unmarshalInputConfigureShopifyInput,
 		ec.unmarshalInputExchangeTokenInput,
 		ec.unmarshalInputInstallAppInput,
 	)
@@ -421,6 +861,38 @@ type Product {
   updatedAt: Time!
 }
 
+# Order represents a Shopify order
+type Order {
+  id: ID!
+  orderNumber: Int!
+  email: String
+  totalPrice: String!
+  financialStatus: String
+  fulfillmentStatus: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Customer represents a Shopify customer
+type Customer {
+  id: ID!
+  email: String
+  firstName: String
+  lastName: String
+  ordersCount: Int
+  totalSpent: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# InventoryLevel represents inventory information
+type InventoryLevel {
+  inventoryItemId: ID!
+  locationId: ID!
+  available: Int
+  updatedAt: Time!
+}
+
 # WebhookEvent represents a received webhook
 type WebhookEvent {
   id: ID!
@@ -428,6 +900,16 @@ type WebhookEvent {
   shop: String!
   verified: Boolean!
   createdAt: Time!
+}
+
+# ShopifyCredentials represents API credentials
+type ShopifyCredentials {
+  id: ID!
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  createdAt: Time!
+  updatedAt: Time!
 }
 
 # Input for installing the Shopify app
@@ -453,20 +935,82 @@ type ExchangeTokenPayload {
   accessToken: String!
 }
 
+# ShopifyConfig represents Shopify configuration
+type ShopifyConfig {
+  id: ID!
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  webhookUrl: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# Input for configuring Shopify
+input ConfigureShopifyInput {
+  apiKey: String!
+  apiSecret: String!
+  webhookSecret: String
+}
+
+# Payload returned after configuring Shopify
+type ConfigureShopifyPayload {
+  id: ID!
+  apiKey: String!
+  webhookUrl: String!
+}
+
+# Input for configuring credentials (deprecated - use ConfigureShopifyInput)
+input ConfigureCredentialsInput {
+  projectId: String!
+  environment: String!
+  apiKey: String!
+  apiSecret: String!
+}
+
+# Payload returned after configuring credentials (deprecated)
+type ConfigureCredentialsPayload {
+  credentials: ShopifyCredentials!
+}
+
 type Query {
-  # Get shop information by domain
+  # Shop operations
   shopify_shop(domain: String!): Shop
   
-  # Get products for a shop
+  # Product operations
   shopify_products(domain: String!): [Product!]!
+  shopify_product(domain: String!, productId: ID!): Product
+  
+  # Order operations
+  shopify_orders(domain: String!): [Order!]!
+  shopify_order(domain: String!, orderId: ID!): Order
+  
+  # Customer operations
+  shopify_customers(domain: String!): [Customer!]!
+  shopify_customer(domain: String!, customerId: ID!): Customer
+  shopify_searchCustomers(domain: String!, query: String!): [Customer!]!
+  
+  # Inventory operations
+  shopify_inventoryLevels(domain: String!): [InventoryLevel!]!
+  
+  # Configuration operations
+  shopify_getConfig: ShopifyConfig
+  
+  # Credentials operations (deprecated)
+  shopify_getCredentials(projectId: String!, environment: String!): ShopifyCredentials
 }
 
 type Mutation {
-  # Generate authorization URL for app installation
-  shopify_installApp(input: InstallAppInput!): InstallAppPayload!
+  # Configuration operations
+  configureShopify(input: ConfigureShopifyInput!): ConfigureShopifyPayload!
   
-  # Exchange authorization code for access token
+  # Auth operations
+  shopify_installApp(input: InstallAppInput!): InstallAppPayload!
   shopify_exchangeToken(input: ExchangeTokenInput!): ExchangeTokenPayload!
+  
+  # Credentials operations (deprecated - use configureShopify)
+  shopify_configureCredentials(input: ConfigureCredentialsInput!): ConfigureCredentialsPayload!
+  shopify_deleteCredentials(projectId: String!, environment: String!): Boolean!
 }
 `, BuiltIn: false},
 }
@@ -475,6 +1019,44 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_configureShopify_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConfigureShopifyInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureShopifyInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_shopify_configureCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConfigureCredentialsInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureCredentialsInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_shopify_deleteCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_shopify_exchangeToken_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -509,6 +1091,103 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_shopify_customer_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "customerId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["customerId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_customers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_getCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_inventoryLevels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_order_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "orderId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["orderId"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_orders_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_product_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "productId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["productId"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_shopify_products_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -517,6 +1196,22 @@ func (ec *executionContext) field_Query_shopify_products_args(ctx context.Contex
 		return nil, err
 	}
 	args["domain"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_shopify_searchCustomers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "domain", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["domain"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg1
 	return args, nil
 }
 
@@ -582,6 +1277,368 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ConfigureCredentialsPayload_credentials(ctx context.Context, field graphql.CollectedField, obj *model.ConfigureCredentialsPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigureCredentialsPayload_credentials,
+		func(ctx context.Context) (any, error) {
+			return obj.Credentials, nil
+		},
+		nil,
+		ec.marshalNShopifyCredentials2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyCredentials,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigureCredentialsPayload_credentials(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigureCredentialsPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ShopifyCredentials_id(ctx, field)
+			case "projectId":
+				return ec.fieldContext_ShopifyCredentials_projectId(ctx, field)
+			case "environment":
+				return ec.fieldContext_ShopifyCredentials_environment(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_ShopifyCredentials_apiKey(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ShopifyCredentials_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ShopifyCredentials_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopifyCredentials", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigureShopifyPayload_id(ctx context.Context, field graphql.CollectedField, obj *model.ConfigureShopifyPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigureShopifyPayload_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigureShopifyPayload_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigureShopifyPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigureShopifyPayload_apiKey(ctx context.Context, field graphql.CollectedField, obj *model.ConfigureShopifyPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigureShopifyPayload_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigureShopifyPayload_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigureShopifyPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConfigureShopifyPayload_webhookUrl(ctx context.Context, field graphql.CollectedField, obj *model.ConfigureShopifyPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ConfigureShopifyPayload_webhookUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.WebhookURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ConfigureShopifyPayload_webhookUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ConfigureShopifyPayload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_id(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_email(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_email,
+		func(ctx context.Context) (any, error) {
+			return obj.Email, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_firstName(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_firstName,
+		func(ctx context.Context) (any, error) {
+			return obj.FirstName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_firstName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_lastName(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_lastName,
+		func(ctx context.Context) (any, error) {
+			return obj.LastName, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_lastName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_ordersCount(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_ordersCount,
+		func(ctx context.Context) (any, error) {
+			return obj.OrdersCount, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_ordersCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_totalSpent(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_totalSpent,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalSpent, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_totalSpent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Customer_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Customer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Customer_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Customer_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Customer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _ExchangeTokenPayload_shop(ctx context.Context, field graphql.CollectedField, obj *model.ExchangeTokenPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -682,6 +1739,171 @@ func (ec *executionContext) fieldContext_InstallAppPayload_authUrl(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _InventoryLevel_inventoryItemId(ctx context.Context, field graphql.CollectedField, obj *model.InventoryLevel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InventoryLevel_inventoryItemId,
+		func(ctx context.Context) (any, error) {
+			return obj.InventoryItemID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_InventoryLevel_inventoryItemId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InventoryLevel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InventoryLevel_locationId(ctx context.Context, field graphql.CollectedField, obj *model.InventoryLevel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InventoryLevel_locationId,
+		func(ctx context.Context) (any, error) {
+			return obj.LocationID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_InventoryLevel_locationId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InventoryLevel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InventoryLevel_available(ctx context.Context, field graphql.CollectedField, obj *model.InventoryLevel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InventoryLevel_available,
+		func(ctx context.Context) (any, error) {
+			return obj.Available, nil
+		},
+		nil,
+		ec.marshalOInt2ᚖint,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_InventoryLevel_available(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InventoryLevel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InventoryLevel_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.InventoryLevel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_InventoryLevel_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_InventoryLevel_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InventoryLevel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_configureShopify(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_configureShopify,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConfigureShopify(ctx, fc.Args["input"].(model.ConfigureShopifyInput))
+		},
+		nil,
+		ec.marshalNConfigureShopifyPayload2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureShopifyPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_configureShopify(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ConfigureShopifyPayload_id(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_ConfigureShopifyPayload_apiKey(ctx, field)
+			case "webhookUrl":
+				return ec.fieldContext_ConfigureShopifyPayload_webhookUrl(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigureShopifyPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_configureShopify_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_shopify_installApp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -770,6 +1992,324 @@ func (ec *executionContext) fieldContext_Mutation_shopify_exchangeToken(ctx cont
 	if fc.Args, err = ec.field_Mutation_shopify_exchangeToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_shopify_configureCredentials(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_shopify_configureCredentials,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ShopifyConfigureCredentials(ctx, fc.Args["input"].(model.ConfigureCredentialsInput))
+		},
+		nil,
+		ec.marshalNConfigureCredentialsPayload2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureCredentialsPayload,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_shopify_configureCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "credentials":
+				return ec.fieldContext_ConfigureCredentialsPayload_credentials(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ConfigureCredentialsPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_shopify_configureCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_shopify_deleteCredentials(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_shopify_deleteCredentials,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ShopifyDeleteCredentials(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_shopify_deleteCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_shopify_deleteCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_id(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_orderNumber(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_orderNumber,
+		func(ctx context.Context) (any, error) {
+			return obj.OrderNumber, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_orderNumber(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_email(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_email,
+		func(ctx context.Context) (any, error) {
+			return obj.Email, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_email(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_totalPrice(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_totalPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalPrice, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_totalPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_financialStatus(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_financialStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.FinancialStatus, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_financialStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_fulfillmentStatus(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_fulfillmentStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.FulfillmentStatus, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_fulfillmentStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Order_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -1087,6 +2627,509 @@ func (ec *executionContext) fieldContext_Query_shopify_products(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_shopify_product(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_product,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyProduct(ctx, fc.Args["domain"].(string), fc.Args["productId"].(string))
+		},
+		nil,
+		ec.marshalOProduct2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐProduct,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_product(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Product_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Product_title(ctx, field)
+			case "handle":
+				return ec.fieldContext_Product_handle(ctx, field)
+			case "vendor":
+				return ec.fieldContext_Product_vendor(ctx, field)
+			case "productType":
+				return ec.fieldContext_Product_productType(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Product_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Product_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_product_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_orders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_orders,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyOrders(ctx, fc.Args["domain"].(string))
+		},
+		nil,
+		ec.marshalNOrder2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrderᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_orders(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Order_id(ctx, field)
+			case "orderNumber":
+				return ec.fieldContext_Order_orderNumber(ctx, field)
+			case "email":
+				return ec.fieldContext_Order_email(ctx, field)
+			case "totalPrice":
+				return ec.fieldContext_Order_totalPrice(ctx, field)
+			case "financialStatus":
+				return ec.fieldContext_Order_financialStatus(ctx, field)
+			case "fulfillmentStatus":
+				return ec.fieldContext_Order_fulfillmentStatus(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Order_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Order_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_orders_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_order(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_order,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyOrder(ctx, fc.Args["domain"].(string), fc.Args["orderId"].(string))
+		},
+		nil,
+		ec.marshalOOrder2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrder,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_order(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Order_id(ctx, field)
+			case "orderNumber":
+				return ec.fieldContext_Order_orderNumber(ctx, field)
+			case "email":
+				return ec.fieldContext_Order_email(ctx, field)
+			case "totalPrice":
+				return ec.fieldContext_Order_totalPrice(ctx, field)
+			case "financialStatus":
+				return ec.fieldContext_Order_financialStatus(ctx, field)
+			case "fulfillmentStatus":
+				return ec.fieldContext_Order_fulfillmentStatus(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Order_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Order_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_order_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_customers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_customers,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyCustomers(ctx, fc.Args["domain"].(string))
+		},
+		nil,
+		ec.marshalNCustomer2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomerᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_customers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Customer_id(ctx, field)
+			case "email":
+				return ec.fieldContext_Customer_email(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Customer_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Customer_lastName(ctx, field)
+			case "ordersCount":
+				return ec.fieldContext_Customer_ordersCount(ctx, field)
+			case "totalSpent":
+				return ec.fieldContext_Customer_totalSpent(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Customer_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Customer_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Customer", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_customers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_customer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_customer,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyCustomer(ctx, fc.Args["domain"].(string), fc.Args["customerId"].(string))
+		},
+		nil,
+		ec.marshalOCustomer2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomer,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_customer(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Customer_id(ctx, field)
+			case "email":
+				return ec.fieldContext_Customer_email(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Customer_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Customer_lastName(ctx, field)
+			case "ordersCount":
+				return ec.fieldContext_Customer_ordersCount(ctx, field)
+			case "totalSpent":
+				return ec.fieldContext_Customer_totalSpent(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Customer_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Customer_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Customer", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_customer_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_searchCustomers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_searchCustomers,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifySearchCustomers(ctx, fc.Args["domain"].(string), fc.Args["query"].(string))
+		},
+		nil,
+		ec.marshalNCustomer2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomerᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_searchCustomers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Customer_id(ctx, field)
+			case "email":
+				return ec.fieldContext_Customer_email(ctx, field)
+			case "firstName":
+				return ec.fieldContext_Customer_firstName(ctx, field)
+			case "lastName":
+				return ec.fieldContext_Customer_lastName(ctx, field)
+			case "ordersCount":
+				return ec.fieldContext_Customer_ordersCount(ctx, field)
+			case "totalSpent":
+				return ec.fieldContext_Customer_totalSpent(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Customer_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Customer_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Customer", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_searchCustomers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_inventoryLevels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_inventoryLevels,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyInventoryLevels(ctx, fc.Args["domain"].(string))
+		},
+		nil,
+		ec.marshalNInventoryLevel2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐInventoryLevelᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_inventoryLevels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "inventoryItemId":
+				return ec.fieldContext_InventoryLevel_inventoryItemId(ctx, field)
+			case "locationId":
+				return ec.fieldContext_InventoryLevel_locationId(ctx, field)
+			case "available":
+				return ec.fieldContext_InventoryLevel_available(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_InventoryLevel_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type InventoryLevel", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_inventoryLevels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_getConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_getConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().ShopifyGetConfig(ctx)
+		},
+		nil,
+		ec.marshalOShopifyConfig2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_getConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ShopifyConfig_id(ctx, field)
+			case "projectId":
+				return ec.fieldContext_ShopifyConfig_projectId(ctx, field)
+			case "environment":
+				return ec.fieldContext_ShopifyConfig_environment(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_ShopifyConfig_apiKey(ctx, field)
+			case "webhookUrl":
+				return ec.fieldContext_ShopifyConfig_webhookUrl(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ShopifyConfig_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ShopifyConfig_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopifyConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopify_getCredentials(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_shopify_getCredentials,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ShopifyGetCredentials(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string))
+		},
+		nil,
+		ec.marshalOShopifyCredentials2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyCredentials,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_shopify_getCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ShopifyCredentials_id(ctx, field)
+			case "projectId":
+				return ec.fieldContext_ShopifyCredentials_projectId(ctx, field)
+			case "environment":
+				return ec.fieldContext_ShopifyCredentials_environment(ctx, field)
+			case "apiKey":
+				return ec.fieldContext_ShopifyCredentials_apiKey(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ShopifyCredentials_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ShopifyCredentials_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopifyCredentials", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shopify_getCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1330,6 +3373,383 @@ func (ec *executionContext) _Shop_updatedAt(ctx context.Context, field graphql.C
 func (ec *executionContext) fieldContext_Shop_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_id(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_projectId(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_projectId,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_projectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_environment(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_environment,
+		func(ctx context.Context) (any, error) {
+			return obj.Environment, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_apiKey(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_webhookUrl(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_webhookUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.WebhookURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_webhookUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyConfig_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyConfig_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyConfig_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_id(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_projectId(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_projectId,
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_projectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_environment(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_environment,
+		func(ctx context.Context) (any, error) {
+			return obj.Environment, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_apiKey(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_apiKey,
+		func(ctx context.Context) (any, error) {
+			return obj.APIKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_apiKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopifyCredentials_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.ShopifyCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ShopifyCredentials_updatedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		ec.marshalNTime2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋscalarsᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ShopifyCredentials_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopifyCredentials",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -2931,6 +5351,95 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputConfigureCredentialsInput(ctx context.Context, obj any) (model.ConfigureCredentialsInput, error) {
+	var it model.ConfigureCredentialsInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "environment", "apiKey", "apiSecret"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "apiSecret":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiSecret"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APISecret = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputConfigureShopifyInput(ctx context.Context, obj any) (model.ConfigureShopifyInput, error) {
+	var it model.ConfigureShopifyInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"apiKey", "apiSecret", "webhookSecret"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "apiSecret":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiSecret"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APISecret = data
+		case "webhookSecret":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("webhookSecret"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WebhookSecret = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputExchangeTokenInput(ctx context.Context, obj any) (model.ExchangeTokenInput, error) {
 	var it model.ExchangeTokenInput
 	asMap := map[string]any{}
@@ -3006,6 +5515,153 @@ func (ec *executionContext) unmarshalInputInstallAppInput(ctx context.Context, o
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var configureCredentialsPayloadImplementors = []string{"ConfigureCredentialsPayload"}
+
+func (ec *executionContext) _ConfigureCredentialsPayload(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigureCredentialsPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, configureCredentialsPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConfigureCredentialsPayload")
+		case "credentials":
+			out.Values[i] = ec._ConfigureCredentialsPayload_credentials(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var configureShopifyPayloadImplementors = []string{"ConfigureShopifyPayload"}
+
+func (ec *executionContext) _ConfigureShopifyPayload(ctx context.Context, sel ast.SelectionSet, obj *model.ConfigureShopifyPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, configureShopifyPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConfigureShopifyPayload")
+		case "id":
+			out.Values[i] = ec._ConfigureShopifyPayload_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._ConfigureShopifyPayload_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "webhookUrl":
+			out.Values[i] = ec._ConfigureShopifyPayload_webhookUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var customerImplementors = []string{"Customer"}
+
+func (ec *executionContext) _Customer(ctx context.Context, sel ast.SelectionSet, obj *model.Customer) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, customerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Customer")
+		case "id":
+			out.Values[i] = ec._Customer_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "email":
+			out.Values[i] = ec._Customer_email(ctx, field, obj)
+		case "firstName":
+			out.Values[i] = ec._Customer_firstName(ctx, field, obj)
+		case "lastName":
+			out.Values[i] = ec._Customer_lastName(ctx, field, obj)
+		case "ordersCount":
+			out.Values[i] = ec._Customer_ordersCount(ctx, field, obj)
+		case "totalSpent":
+			out.Values[i] = ec._Customer_totalSpent(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Customer_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Customer_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var exchangeTokenPayloadImplementors = []string{"ExchangeTokenPayload"}
 
@@ -3090,6 +5746,57 @@ func (ec *executionContext) _InstallAppPayload(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var inventoryLevelImplementors = []string{"InventoryLevel"}
+
+func (ec *executionContext) _InventoryLevel(ctx context.Context, sel ast.SelectionSet, obj *model.InventoryLevel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, inventoryLevelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("InventoryLevel")
+		case "inventoryItemId":
+			out.Values[i] = ec._InventoryLevel_inventoryItemId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "locationId":
+			out.Values[i] = ec._InventoryLevel_locationId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "available":
+			out.Values[i] = ec._InventoryLevel_available(ctx, field, obj)
+		case "updatedAt":
+			out.Values[i] = ec._InventoryLevel_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -3109,6 +5816,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "configureShopify":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_configureShopify(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "shopify_installApp":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_shopify_installApp(ctx, field)
@@ -3120,6 +5834,85 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_shopify_exchangeToken(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "shopify_configureCredentials":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_shopify_configureCredentials(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "shopify_deleteCredentials":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_shopify_deleteCredentials(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var orderImplementors = []string{"Order"}
+
+func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, obj *model.Order) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, orderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Order")
+		case "id":
+			out.Values[i] = ec._Order_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "orderNumber":
+			out.Values[i] = ec._Order_orderNumber(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "email":
+			out.Values[i] = ec._Order_email(ctx, field, obj)
+		case "totalPrice":
+			out.Values[i] = ec._Order_totalPrice(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "financialStatus":
+			out.Values[i] = ec._Order_financialStatus(ctx, field, obj)
+		case "fulfillmentStatus":
+			out.Values[i] = ec._Order_fulfillmentStatus(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Order_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Order_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -3266,6 +6059,189 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_product":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_product(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_orders":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_orders(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_order":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_order(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_customers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_customers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_customer":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_customer(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_searchCustomers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_searchCustomers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_inventoryLevels":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_inventoryLevels(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_getConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_getConfig(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopify_getCredentials":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopify_getCredentials(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -3330,6 +6306,139 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "updatedAt":
 			out.Values[i] = ec._Shop_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var shopifyConfigImplementors = []string{"ShopifyConfig"}
+
+func (ec *executionContext) _ShopifyConfig(ctx context.Context, sel ast.SelectionSet, obj *model.ShopifyConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, shopifyConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ShopifyConfig")
+		case "id":
+			out.Values[i] = ec._ShopifyConfig_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projectId":
+			out.Values[i] = ec._ShopifyConfig_projectId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "environment":
+			out.Values[i] = ec._ShopifyConfig_environment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._ShopifyConfig_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "webhookUrl":
+			out.Values[i] = ec._ShopifyConfig_webhookUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._ShopifyConfig_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._ShopifyConfig_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var shopifyCredentialsImplementors = []string{"ShopifyCredentials"}
+
+func (ec *executionContext) _ShopifyCredentials(ctx context.Context, sel ast.SelectionSet, obj *model.ShopifyCredentials) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, shopifyCredentialsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ShopifyCredentials")
+		case "id":
+			out.Values[i] = ec._ShopifyCredentials_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projectId":
+			out.Values[i] = ec._ShopifyCredentials_projectId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "environment":
+			out.Values[i] = ec._ShopifyCredentials_environment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "apiKey":
+			out.Values[i] = ec._ShopifyCredentials_apiKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._ShopifyCredentials_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._ShopifyCredentials_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -3766,6 +6875,98 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNConfigureCredentialsInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureCredentialsInput(ctx context.Context, v any) (model.ConfigureCredentialsInput, error) {
+	res, err := ec.unmarshalInputConfigureCredentialsInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNConfigureCredentialsPayload2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureCredentialsPayload(ctx context.Context, sel ast.SelectionSet, v model.ConfigureCredentialsPayload) graphql.Marshaler {
+	return ec._ConfigureCredentialsPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConfigureCredentialsPayload2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureCredentialsPayload(ctx context.Context, sel ast.SelectionSet, v *model.ConfigureCredentialsPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConfigureCredentialsPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNConfigureShopifyInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureShopifyInput(ctx context.Context, v any) (model.ConfigureShopifyInput, error) {
+	res, err := ec.unmarshalInputConfigureShopifyInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNConfigureShopifyPayload2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureShopifyPayload(ctx context.Context, sel ast.SelectionSet, v model.ConfigureShopifyPayload) graphql.Marshaler {
+	return ec._ConfigureShopifyPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConfigureShopifyPayload2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐConfigureShopifyPayload(ctx context.Context, sel ast.SelectionSet, v *model.ConfigureShopifyPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ConfigureShopifyPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCustomer2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Customer) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCustomer2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomer(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCustomer2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomer(ctx context.Context, sel ast.SelectionSet, v *model.Customer) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Customer(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNExchangeTokenInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐExchangeTokenInput(ctx context.Context, v any) (model.ExchangeTokenInput, error) {
 	res, err := ec.unmarshalInputExchangeTokenInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3818,6 +7019,130 @@ func (ec *executionContext) marshalNInstallAppPayload2ᚖarchieᚑcoreᚑshopify
 		return graphql.Null
 	}
 	return ec._InstallAppPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) marshalNInventoryLevel2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐInventoryLevelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InventoryLevel) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNInventoryLevel2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐInventoryLevel(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNInventoryLevel2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐInventoryLevel(ctx context.Context, sel ast.SelectionSet, v *model.InventoryLevel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._InventoryLevel(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNOrder2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNOrder2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrder(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNOrder2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Order(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProduct2ᚕᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐProductᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Product) graphql.Marshaler {
@@ -3882,6 +7207,16 @@ func (ec *executionContext) marshalNShop2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgr
 		return graphql.Null
 	}
 	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNShopifyCredentials2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyCredentials(ctx context.Context, sel ast.SelectionSet, v *model.ShopifyCredentials) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ShopifyCredentials(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -4223,11 +7558,64 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) marshalOCustomer2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐCustomer(ctx context.Context, sel ast.SelectionSet, v *model.Customer) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Customer(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
+	return res
+}
+
+func (ec *executionContext) marshalOOrder2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Order(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOProduct2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐProduct(ctx context.Context, sel ast.SelectionSet, v *model.Product) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Product(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOShop2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShop(ctx context.Context, sel ast.SelectionSet, v *model.Shop) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOShopifyConfig2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyConfig(ctx context.Context, sel ast.SelectionSet, v *model.ShopifyConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ShopifyConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOShopifyCredentials2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐShopifyCredentials(ctx context.Context, sel ast.SelectionSet, v *model.ShopifyCredentials) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ShopifyCredentials(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

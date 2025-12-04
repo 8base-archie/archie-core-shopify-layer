@@ -9,10 +9,39 @@ import (
 	"archie-core-shopify-layer/graph/generated"
 	"archie-core-shopify-layer/graph/model"
 	"archie-core-shopify-layer/graph/scalars"
+	"archie-core-shopify-layer/internal/application"
 	"context"
 	"fmt"
 	"time"
 )
+
+// ConfigureShopify is the resolver for the configureShopify field.
+func (r *mutationResolver) ConfigureShopify(ctx context.Context, input model.ConfigureShopifyInput) (*model.ConfigureShopifyPayload, error) {
+	tenantID := getTenantID(ctx)
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant ID not found in context")
+	}
+
+	configInput := &application.ConfigureShopifyInput{
+		APIKey:        input.APIKey,
+		APISecret:     input.APISecret,
+		WebhookSecret: "",
+	}
+	if input.WebhookSecret != nil {
+		configInput.WebhookSecret = *input.WebhookSecret
+	}
+
+	config, err := r.credentialsService.ConfigureShopify(ctx, tenantID, configInput)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.ConfigureShopifyPayload{
+		ID:         config.ID,
+		APIKey:     config.APIKey,
+		WebhookURL: config.WebhookURL,
+	}, nil
+}
 
 // ShopifyInstallApp is the resolver for the shopify_installApp field.
 func (r *mutationResolver) ShopifyInstallApp(ctx context.Context, input model.InstallAppInput) (*model.InstallAppPayload, error) {
@@ -43,6 +72,46 @@ func (r *mutationResolver) ShopifyExchangeToken(ctx context.Context, input model
 		},
 		AccessToken: shop.AccessToken,
 	}, nil
+}
+
+// ShopifyConfigureCredentials is the resolver for the shopify_configureCredentials field (deprecated).
+func (r *mutationResolver) ShopifyConfigureCredentials(ctx context.Context, input model.ConfigureCredentialsInput) (*model.ConfigureCredentialsPayload, error) {
+	tenantID := getTenantID(ctx)
+	if tenantID == "" {
+		// Fallback to input projectId for backward compatibility
+		tenantID = input.ProjectID
+	}
+
+	configInput := &application.ConfigureShopifyInput{
+		APIKey:        input.APIKey,
+		APISecret:     input.APISecret,
+		WebhookSecret: "",
+	}
+
+	config, err := r.credentialsService.ConfigureShopify(ctx, tenantID, configInput)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to legacy format
+	creds := &model.ShopifyCredentials{
+		ID:          config.ID,
+		ProjectID:   config.ProjectID,
+		Environment: config.Environment,
+		APIKey:      config.APIKey,
+		CreatedAt:   scalars.Time(config.CreatedAt),
+		UpdatedAt:   scalars.Time(config.UpdatedAt),
+	}
+
+	return &model.ConfigureCredentialsPayload{
+		Credentials: creds,
+	}, nil
+}
+
+// ShopifyDeleteCredentials is the resolver for the shopify_deleteCredentials field.
+func (r *mutationResolver) ShopifyDeleteCredentials(ctx context.Context, projectID string, environment string) (bool, error) {
+	// TODO: Implement delete functionality
+	return false, fmt.Errorf("delete credentials not yet implemented")
 }
 
 // ShopifyShop is the resolver for the shopify_shop field.
@@ -89,6 +158,90 @@ func (r *queryResolver) ShopifyProducts(ctx context.Context, domain string) ([]*
 	}
 
 	return result, nil
+}
+
+// ShopifyProduct is the resolver for the shopify_product field.
+func (r *queryResolver) ShopifyProduct(ctx context.Context, domain string, productID string) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: ShopifyProduct - shopify_product"))
+}
+
+// ShopifyOrders is the resolver for the shopify_orders field.
+func (r *queryResolver) ShopifyOrders(ctx context.Context, domain string) ([]*model.Order, error) {
+	panic(fmt.Errorf("not implemented: ShopifyOrders - shopify_orders"))
+}
+
+// ShopifyOrder is the resolver for the shopify_order field.
+func (r *queryResolver) ShopifyOrder(ctx context.Context, domain string, orderID string) (*model.Order, error) {
+	panic(fmt.Errorf("not implemented: ShopifyOrder - shopify_order"))
+}
+
+// ShopifyCustomers is the resolver for the shopify_customers field.
+func (r *queryResolver) ShopifyCustomers(ctx context.Context, domain string) ([]*model.Customer, error) {
+	panic(fmt.Errorf("not implemented: ShopifyCustomers - shopify_customers"))
+}
+
+// ShopifyCustomer is the resolver for the shopify_customer field.
+func (r *queryResolver) ShopifyCustomer(ctx context.Context, domain string, customerID string) (*model.Customer, error) {
+	panic(fmt.Errorf("not implemented: ShopifyCustomer - shopify_customer"))
+}
+
+// ShopifySearchCustomers is the resolver for the shopify_searchCustomers field.
+func (r *queryResolver) ShopifySearchCustomers(ctx context.Context, domain string, query string) ([]*model.Customer, error) {
+	panic(fmt.Errorf("not implemented: ShopifySearchCustomers - shopify_searchCustomers"))
+}
+
+// ShopifyInventoryLevels is the resolver for the shopify_inventoryLevels field.
+func (r *queryResolver) ShopifyInventoryLevels(ctx context.Context, domain string) ([]*model.InventoryLevel, error) {
+	panic(fmt.Errorf("not implemented: ShopifyInventoryLevels - shopify_inventoryLevels"))
+}
+
+// ShopifyGetConfig is the resolver for the shopify_getConfig field.
+func (r *queryResolver) ShopifyGetConfig(ctx context.Context) (*model.ShopifyConfig, error) {
+	tenantID := getTenantID(ctx)
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant ID not found in context")
+	}
+
+	config, err := r.credentialsService.GetConfig(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.ShopifyConfig{
+		ID:          config.ID,
+		ProjectID:   config.ProjectID,
+		Environment: config.Environment,
+		APIKey:      config.APIKey,
+		WebhookURL:  config.WebhookURL,
+		CreatedAt:   scalars.Time(config.CreatedAt),
+		UpdatedAt:   scalars.Time(config.UpdatedAt),
+	}, nil
+}
+
+// ShopifyGetCredentials is the resolver for the shopify_getCredentials field (deprecated).
+func (r *queryResolver) ShopifyGetCredentials(ctx context.Context, projectID string, environment string) (*model.ShopifyCredentials, error) {
+	tenantID := getTenantID(ctx)
+	if tenantID == "" {
+		tenantID = projectID // Fallback
+	}
+
+	creds, err := r.credentialsService.GetCredentials(ctx, tenantID, environment)
+	if err != nil {
+		return nil, err
+	}
+
+	if creds == nil {
+		return nil, nil
+	}
+
+	return &model.ShopifyCredentials{
+		ID:          creds.ID,
+		ProjectID:   creds.ProjectID,
+		Environment: creds.Environment,
+		APIKey:      creds.APIKey,
+		CreatedAt:   scalars.Time(creds.CreatedAt),
+		UpdatedAt:   scalars.Time(creds.UpdatedAt),
+	}, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.

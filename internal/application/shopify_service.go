@@ -12,34 +12,100 @@ import (
 )
 
 // ShopifyService implements the application business logic
+// It depends on ports (interfaces) not concrete implementations
 type ShopifyService struct {
-	repository ports.Repository
-	client     ports.ShopifyClient
-	logger     zerolog.Logger
-	apiKey     string
-	apiSecret  string
+	repository     ports.Repository
+	configRepo     ports.ShopifyConfigRepository
+	encryptionSvc  ports.EncryptionService
+	clientPool     ports.ShopifyClientPool
+	logger         zerolog.Logger
+	webhookBaseURL string
 }
 
-// NewShopifyService creates a new Shopify service
+// NewShopifyService creates a new Shopify application service
 func NewShopifyService(
 	repository ports.Repository,
-	client ports.ShopifyClient,
+	configRepo ports.ShopifyConfigRepository,
+	encryptionSvc ports.EncryptionService,
+	clientPool ports.ShopifyClientPool,
 	logger zerolog.Logger,
-	apiKey string,
-	apiSecret string,
+	webhookBaseURL string,
 ) *ShopifyService {
 	return &ShopifyService{
-		repository: repository,
-		client:     client,
-		logger:     logger,
-		apiKey:     apiKey,
-		apiSecret:  apiSecret,
+		repository:     repository,
+		configRepo:     configRepo,
+		encryptionSvc:  encryptionSvc,
+		clientPool:     clientPool,
+		logger:         logger,
+		webhookBaseURL: webhookBaseURL,
 	}
+}
+
+// GetClientForTenant retrieves a Shopify client for a project and environment
+// tenantID is actually projectID in this context
+func (s *ShopifyService) GetClientForTenant(ctx context.Context, tenantID string) (ports.ShopifyClient, error) {
+	// Extract projectID and environment from context (type-safe)
+	projectID := domain.GetProjectIDFromContext(ctx)
+	environment := domain.GetEnvironmentFromContext(ctx)
+
+	if projectID == "" {
+		projectID = tenantID // Fallback
+	}
+	if environment == "" {
+		environment = domain.DefaultEnvironment // Default
+	}
+
+	config, err := s.configRepo.GetByTenantID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, fmt.Errorf("shopify not configured for project %s and environment %s", projectID, environment)
+	}
+
+	// Decrypt API secret
+	apiSecret, err := s.encryptionSvc.Decrypt(config.EncryptedKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt API secret: %w", err)
+	}
+
+	// Get client from pool using projectID-environment as key
+	return s.clientPool.GetClient(ctx, projectID+"-"+environment, config.APIKey, apiSecret)
+}
+
+// GetConfig retrieves the Shopify configuration for a project and environment
+func (s *ShopifyService) GetConfig(ctx context.Context, tenantID string) (*domain.ShopifyConfig, error) {
+	// Extract projectID and environment from context (type-safe)
+	projectID := domain.GetProjectIDFromContext(ctx)
+	environment := domain.GetEnvironmentFromContext(ctx)
+
+	if projectID == "" {
+		projectID = tenantID // Fallback
+	}
+	if environment == "" {
+		environment = domain.DefaultEnvironment // Default
+	}
+
+	config, err := s.configRepo.GetByTenantID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, fmt.Errorf("shopify not configured for project %s and environment %s", projectID, environment)
+	}
+
+	return config, nil
 }
 
 // GenerateAuthURL generates the OAuth authorization URL
 func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scopes []string) (string, error) {
-	authURL, err := s.client.GenerateAuthURL(shop, scopes)
+	// Get client for tenant
+	client, err := s.GetClientForTenant(ctx, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to get client: %w", err)
+	}
+
+	authURL, err := client.GenerateAuthURL(shop, scopes)
 	if err != nil {
 		s.logger.Error().Err(err).Str("shop", shop).Msg("Failed to generate auth URL")
 		return "", fmt.Errorf("failed to generate auth URL: %w", err)
@@ -50,25 +116,38 @@ func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scope
 
 // ExchangeToken exchanges the authorization code for an access token
 func (s *ShopifyService) ExchangeToken(ctx context.Context, shop string, code string) (*domain.Shop, error) {
+	// Get client for tenant
+	client, err := s.GetClientForTenant(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
 	// Exchange code for access token
-	accessToken, err := s.client.ExchangeToken(ctx, shop, code)
+	accessToken, err := client.ExchangeToken(ctx, shop, code)
 	if err != nil {
 		s.logger.Error().Err(err).Str("shop", shop).Msg("Failed to exchange token")
 		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
 
 	// Get shop information
-	shopInfo, err := s.client.GetShop(ctx, shop, accessToken)
+	shopInfo, err := client.GetShop(ctx, shop, accessToken)
 	if err != nil {
 		s.logger.Error().Err(err).Str("shop", shop).Msg("Failed to get shop info")
 		return nil, fmt.Errorf("failed to get shop info: %w", err)
 	}
 
+	// Encrypt access token before storage
+	encryptedToken, err := s.encryptionSvc.Encrypt(accessToken)
+	if err != nil {
+		s.logger.Error().Err(err).Str("shop", shop).Msg("Failed to encrypt access token")
+		return nil, fmt.Errorf("failed to encrypt access token: %w", err)
+	}
+
 	// Create domain shop entity
 	domainShop := &domain.Shop{
 		Domain:      shopInfo.Domain,
-		AccessToken: accessToken,
-		Scopes:      []string{}, // TODO: Extract scopes from response
+		AccessToken: encryptedToken, // Store encrypted token
+		Scopes:      []string{},     // TODO: Extract scopes from response
 	}
 
 	// Save shop to repository
@@ -88,6 +167,18 @@ func (s *ShopifyService) GetShop(ctx context.Context, domain string) (*domain.Sh
 		return nil, fmt.Errorf("failed to get shop: %w", err)
 	}
 
+	// Decrypt access token
+	if shop.AccessToken != "" {
+		decryptedToken, err := s.encryptionSvc.Decrypt(shop.AccessToken)
+		if err != nil {
+			s.logger.Error().Err(err).Str("domain", domain).Msg("Failed to decrypt access token")
+			return nil, fmt.Errorf("failed to decrypt access token: %w", err)
+		}
+		// Return shop with decrypted token (for internal use only)
+		// Note: This is a copy, the domain entity still has encrypted token
+		shop.AccessToken = decryptedToken
+	}
+
 	return shop, nil
 }
 
@@ -104,8 +195,14 @@ func (s *ShopifyService) GetProducts(ctx context.Context, domain string) ([]gosh
 		return nil, fmt.Errorf("shop not found: %s", domain)
 	}
 
+	// Get client for tenant
+	client, err := s.GetClientForTenant(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
 	// Get products from Shopify API
-	products, err := s.client.GetProducts(ctx, domain, shop.AccessToken, nil)
+	products, err := client.GetProducts(ctx, domain, shop.AccessToken, nil)
 	if err != nil {
 		s.logger.Error().Err(err).Str("domain", domain).Msg("Failed to get products")
 		return nil, fmt.Errorf("failed to get products: %w", err)

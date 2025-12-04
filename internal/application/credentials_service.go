@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"archie-core-shopify-layer/internal/domain"
-	"archie-core-shopify-layer/internal/infrastructure/encryption"
 	"archie-core-shopify-layer/internal/ports"
 
 	"github.com/rs/zerolog"
@@ -13,79 +12,161 @@ import (
 
 // CredentialsService handles Shopify credentials management
 type CredentialsService struct {
-	repository ports.Repository
-	encryption *encryption.Service
-	logger     zerolog.Logger
+	configRepo     ports.ShopifyConfigRepository
+	encryptionSvc  ports.EncryptionService
+	logger         zerolog.Logger
+	webhookBaseURL string
 }
 
 // NewCredentialsService creates a new credentials service
 func NewCredentialsService(
-	repository ports.Repository,
-	encryptionService *encryption.Service,
+	configRepo ports.ShopifyConfigRepository,
+	encryptionService ports.EncryptionService,
 	logger zerolog.Logger,
+	webhookBaseURL string,
 ) *CredentialsService {
 	return &CredentialsService{
-		repository: repository,
-		encryption: encryptionService,
-		logger:     logger,
+		configRepo:     configRepo,
+		encryptionSvc:  encryptionService,
+		logger:         logger,
+		webhookBaseURL: webhookBaseURL,
 	}
 }
 
-// SaveCredentials saves Shopify API credentials
-func (s *CredentialsService) SaveCredentials(ctx context.Context, projectID string, environment string, apiKey string, apiSecret string) (*domain.ShopifyCredentials, error) {
+// ConfigureShopifyInput represents the input for configuration
+type ConfigureShopifyInput struct {
+	APIKey        string
+	APISecret     string
+	WebhookSecret string
+}
+
+// ConfigureShopify configures Shopify for a project and environment
+// tenantID is actually projectID in this context
+func (s *CredentialsService) ConfigureShopify(ctx context.Context, tenantID string, input *ConfigureShopifyInput) (*domain.ShopifyConfig, error) {
+	// Extract projectID and environment from context (type-safe)
+	projectID := domain.GetProjectIDFromContext(ctx)
+	environment := domain.GetEnvironmentFromContext(ctx)
+
+	if projectID == "" {
+		projectID = tenantID // Fallback
+	}
+	if environment == "" {
+		environment = domain.DefaultEnvironment // Default
+	}
+
 	// Encrypt API secret
-	encryptedSecret, err := s.encryption.Encrypt(apiSecret)
+	encryptedSecret, err := s.encryptionSvc.Encrypt(input.APISecret)
 	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to encrypt API secret")
 		return nil, fmt.Errorf("failed to encrypt API secret: %w", err)
 	}
 
-	creds := &domain.ShopifyCredentials{
-		ProjectID:   projectID,
-		Environment: environment,
-		APIKey:      apiKey,
-		APISecret:   encryptedSecret,
+	// Generate webhook URL
+	webhookURL := fmt.Sprintf("%s/webhooks/shopify/%s/%s", s.webhookBaseURL, projectID, environment)
+
+	// Check if config exists
+	existing, err := s.configRepo.GetByTenantID(ctx, projectID)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := s.repository.SaveCredentials(ctx, creds); err != nil {
-		s.logger.Error().Err(err).Str("projectId", projectID).Str("environment", environment).Msg("Failed to save credentials")
-		return nil, fmt.Errorf("failed to save credentials: %w", err)
+	// Create configuration using domain constructor with validation
+	config, err := domain.NewShopifyConfig(
+		projectID,
+		environment,
+		encryptedSecret,
+		input.APIKey,
+		input.WebhookSecret,
+		webhookURL,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ShopifyConfig: %w", err)
 	}
 
-	s.logger.Info().Str("projectId", projectID).Str("environment", environment).Msg("Credentials saved successfully")
-	return creds, nil
+	if existing != nil {
+		// Update existing
+		config.ID = existing.ID
+		config.CreatedAt = existing.CreatedAt
+		if err := config.Update(encryptedSecret, input.APIKey, input.WebhookSecret, webhookURL); err != nil {
+			return nil, fmt.Errorf("failed to update ShopifyConfig: %w", err)
+		}
+		if err := s.configRepo.Update(ctx, projectID, config); err != nil {
+			return nil, err
+		}
+	} else {
+		// Create new
+		if err := s.configRepo.Create(ctx, config); err != nil {
+			return nil, err
+		}
+	}
+
+	s.logger.Info().Str("projectId", projectID).Str("environment", environment).Msg("Shopify configuration saved successfully")
+	return config, nil
 }
 
-// GetCredentials retrieves credentials and decrypts the API secret
+// GetConfig retrieves the Shopify configuration for a project and environment
+func (s *CredentialsService) GetConfig(ctx context.Context, tenantID string) (*domain.ShopifyConfig, error) {
+	// Extract projectID and environment from context (type-safe)
+	projectID := domain.GetProjectIDFromContext(ctx)
+	environment := domain.GetEnvironmentFromContext(ctx)
+
+	if projectID == "" {
+		projectID = tenantID // Fallback
+	}
+	if environment == "" {
+		environment = domain.DefaultEnvironment // Default
+	}
+
+	config, err := s.configRepo.GetByTenantID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, fmt.Errorf("shopify not configured for project %s and environment %s", projectID, environment)
+	}
+
+	return config, nil
+}
+
+// SaveCredentials saves Shopify API credentials (deprecated - use ConfigureShopify instead)
+func (s *CredentialsService) SaveCredentials(ctx context.Context, projectID string, environment string, apiKey string, apiSecret string) (*domain.ShopifyCredentials, error) {
+	input := &ConfigureShopifyInput{
+		APIKey:        apiKey,
+		APISecret:     apiSecret,
+		WebhookSecret: "",
+	}
+
+	config, err := s.ConfigureShopify(ctx, projectID, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to legacy format for backward compatibility
+	return &domain.ShopifyCredentials{
+		ID:          config.ID,
+		ProjectID:   config.ProjectID,
+		Environment: config.Environment,
+		APIKey:      config.APIKey,
+		APISecret:   config.EncryptedKey, // Return encrypted version
+		CreatedAt:   config.CreatedAt,
+		UpdatedAt:   config.UpdatedAt,
+	}, nil
+}
+
+// GetCredentials retrieves credentials (deprecated - use GetConfig instead)
 func (s *CredentialsService) GetCredentials(ctx context.Context, projectID string, environment string) (*domain.ShopifyCredentials, error) {
-	creds, err := s.repository.GetCredentials(ctx, projectID, environment)
+	config, err := s.GetConfig(ctx, projectID)
 	if err != nil {
-		s.logger.Error().Err(err).Str("projectId", projectID).Str("environment", environment).Msg("Failed to get credentials")
-		return nil, fmt.Errorf("failed to get credentials: %w", err)
+		return nil, err
 	}
 
-	if creds == nil {
-		return nil, nil
-	}
-
-	// Decrypt API secret
-	decryptedSecret, err := s.encryption.Decrypt(creds.APISecret)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to decrypt API secret")
-		return nil, fmt.Errorf("failed to decrypt API secret: %w", err)
-	}
-
-	creds.APISecret = decryptedSecret
-	return creds, nil
-}
-
-// DeleteCredentials deletes credentials
-func (s *CredentialsService) DeleteCredentials(ctx context.Context, projectID string, environment string) error {
-	if err := s.repository.DeleteCredentials(ctx, projectID, environment); err != nil {
-		s.logger.Error().Err(err).Str("projectId", projectID).Str("environment", environment).Msg("Failed to delete credentials")
-		return fmt.Errorf("failed to delete credentials: %w", err)
-	}
-
-	s.logger.Info().Str("projectId", projectID).Str("environment", environment).Msg("Credentials deleted successfully")
-	return nil
+	// Convert to legacy format
+	return &domain.ShopifyCredentials{
+		ID:          config.ID,
+		ProjectID:   config.ProjectID,
+		Environment: config.Environment,
+		APIKey:      config.APIKey,
+		APISecret:   config.EncryptedKey,
+		CreatedAt:   config.CreatedAt,
+		UpdatedAt:   config.UpdatedAt,
+	}, nil
 }

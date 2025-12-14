@@ -54,6 +54,30 @@ shopify:
 # Application URL configuration for development
 appUrl: 'https://archie-core-shopify.dev.archie-platform.com'
 
+# Ingress configuration for development
+ingress:
+  enabled: true
+  className: 'alb' # AWS Load Balancer Controller - adjust if using different ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # Note: ssl-redirect can be '443' (redirect to port 443) or 'true'/'false'
+    # Using '443' explicitly redirects HTTP to HTTPS on port 443
+    # Uncomment and configure if you have cert-manager
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: archie-core-shopify.dev.archie-platform.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # Uncomment and configure if using TLS certificates
+    # - secretName: archie-core-shopify-dev-tls
+    #   hosts:
+    #     - archie-core-shopify.dev.archie-platform.com
+
 # Logging for development
 logging:
   level: 'info'

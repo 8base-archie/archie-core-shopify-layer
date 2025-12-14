@@ -163,7 +163,7 @@ jobs:
           echo "🧹 Checking for stuck Helm operations..."
 
           # Check if there are any pending operations
-          PENDING_OPERATIONS=$(helm list --all-namespaces --pending --output json | jq length || echo "0")
+          PENDING_OPERATIONS=$(helm list --all-namespaces --pending --output json | jq length)
 
           if [ "$PENDING_OPERATIONS" -gt 0 ]; then
             echo "⚠️  Found $PENDING_OPERATIONS pending Helm operation(s). Attempting cleanup..."
@@ -178,7 +178,7 @@ jobs:
 
             # If archie-core-shopify-layer specifically is stuck, try to force cleanup
             if helm status archie-core-shopify-layer --namespace archie-core >/dev/null 2>&1; then
-              RELEASE_STATUS=$(helm status archie-core-shopify-layer --namespace archie-core -o json | jq -r '.info.status' 2>/dev/null || echo "unknown")
+              RELEASE_STATUS=$(helm status archie-core-shopify-layer --namespace archie-core -o json | jq -r '.info.status')
               if [ "$RELEASE_STATUS" = "pending-install" ] || [ "$RELEASE_STATUS" = "pending-upgrade" ]; then
                 echo "🔨 archie-core-shopify-layer is stuck in $RELEASE_STATUS state. Forcing cleanup..."
                 kubectl delete secret -l owner=helm,name=archie-core-shopify-layer --namespace archie-core || true
@@ -217,6 +217,13 @@ jobs:
           ATOMIC_FLAG="--atomic"
           TIMEOUT="10m"
           
+          # Development: non-atomic to allow debugging, longer timeout
+          if [ "${{ inputs.environment }}" = "development" ]; then
+            ATOMIC_FLAG=""  # Don't use atomic for development to allow debugging
+            TIMEOUT="20m"   # Longer timeout for development
+            echo "🔧 Development mode: non-atomic deployment with extended timeout"
+          fi
+          
           # Production gets special treatment
           if [ "${{ inputs.enable_production_validations }}" = "true" ]; then
             ATOMIC_FLAG=""  # Don't use atomic for production to allow manual rollback
@@ -249,7 +256,7 @@ jobs:
 
             # Check if the release exists and is in a bad state
             if helm status archie-core-shopify-layer --namespace archie-core >/dev/null 2>&1; then
-              RELEASE_STATUS=$(helm status archie-core-shopify-layer --namespace archie-core -o json | jq -r '.info.status' 2>/dev/null || echo "unknown")
+              RELEASE_STATUS=$(helm status archie-core-shopify-layer --namespace archie-core -o json | jq -r '.info.status')
               echo "🔍 Current release status: $RELEASE_STATUS"
 
               if [ "$RELEASE_STATUS" = "failed" ] || [ "$RELEASE_STATUS" = "pending-upgrade" ] || [ "$RELEASE_STATUS" = "pending-install" ]; then
@@ -276,7 +283,25 @@ jobs:
                   --timeout=15m
               fi
             else
-              echo "❌ Release not found. Re-running deployment failed."
+              echo "❌ Release not found. Deployment was rolled back due to atomic flag."
+              echo "🔍 Debugging deployment failure..."
+              
+              # Show current pod status for debugging
+              echo "📊 Current pod status:"
+              kubectl get pods -n archie-core -l app=archie-core-shopify-layer || echo "No pods found"
+              
+              # Show recent events
+              echo "📋 Recent events in namespace:"
+              kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -20 || true
+              
+              # Try to get any existing pod logs
+              EXISTING_POD=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+              if [ -n "$EXISTING_POD" ]; then
+                echo "📝 Logs from pod $EXISTING_POD:"
+                kubectl logs -n archie-core $EXISTING_POD --tail=50 || true
+                echo "📝 Previous container logs (if any):"
+                kubectl logs -n archie-core $EXISTING_POD --previous --tail=50 || true
+              fi
               
               # For production, attempt rollback
               if [ "${{ inputs.enable_production_validations }}" = "true" ] && [ "$BACKUP_REVISION" != "none" ]; then
@@ -290,8 +315,30 @@ jobs:
                   exit 1
                 fi
               fi
+              
+              echo "❌ Deployment failed. Check the logs above for details."
               exit 1
             fi
+          fi
+
+      - name: 🔍 Debug pod status (if deployment failed)
+        if: failure()
+        run: |
+          echo "🔍 Debugging deployment failure..."
+          echo "📊 Pod status:"
+          kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+          echo ""
+          echo "📋 Pod details:"
+          kubectl describe pods -n archie-core -l app=archie-core-shopify-layer || true
+          echo ""
+          echo "📝 Recent events:"
+          kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -30 || true
+          echo ""
+          # Try to get logs from any pod
+          POD_NAME=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$POD_NAME" ]; then
+            echo "📝 Logs from pod $POD_NAME:"
+            kubectl logs -n archie-core $POD_NAME --tail=100 || true
           fi
 
       - name: ✅ Verify deployment

@@ -183,10 +183,11 @@ func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scope
 		projectID := domain.GetProjectIDFromContext(ctx)
 		environment := domain.GetEnvironmentFromContext(ctx)
 
-		// Get base URL from environment variable or default to localhost:3000
+		// Get frontend base URL from environment variable (NOT APP_URL which is shopify-layer's own URL)
+		// Priority: FRONTEND_URL > NEXT_PUBLIC_URL > default to localhost:3000
 		baseURL := os.Getenv("FRONTEND_URL")
 		if baseURL == "" {
-			baseURL = os.Getenv("APP_URL")
+			baseURL = os.Getenv("NEXT_PUBLIC_URL")
 		}
 		if baseURL == "" {
 			baseURL = "http://localhost:3000"

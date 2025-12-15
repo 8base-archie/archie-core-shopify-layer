@@ -102,9 +102,15 @@ func (r *mutationResolver) ShopifyInstallApp(ctx context.Context, input model.In
 	}
 
 	// Debug: Log the entire input to see what we received
-	fmt.Printf("🔍 [ShopifyInstallApp] Received input - Shop: %s, RedirectURI: %v\n", input.Shop, input)
+	fmt.Printf("🔍 [ShopifyInstallApp] Received input - Shop: %s\n", input.Shop)
+	fmt.Printf("🔍 [ShopifyInstallApp] RedirectURI pointer: %v\n", input.RedirectURI)
 	if input.RedirectURI != nil {
 		fmt.Printf("🔍 [ShopifyInstallApp] RedirectURI value: '%s'\n", *input.RedirectURI)
+	} else {
+		fmt.Printf("🔍 [ShopifyInstallApp] RedirectURI is nil - checking if field exists in struct\n")
+		// Try to access via reflection to see if field exists
+		fmt.Printf("🔍 [ShopifyInstallApp] Input struct: Shop=%s, Scopes=%v, ReturnURL=%v, RedirectURI=%v, APIKey=%v, APISecret=%v\n",
+			input.Shop, input.Scopes, input.ReturnURL, input.RedirectURI, input.APIKey, input.APISecret)
 	}
 
 	// Use redirectUri from input if provided, otherwise it will fallback to APP_URL in GenerateAuthURL

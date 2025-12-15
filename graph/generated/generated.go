@@ -6635,7 +6635,7 @@ func (ec *executionContext) unmarshalInputInstallAppInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"shop", "scopes", "returnUrl"}
+	fieldsInOrder := [...]string{"shop", "scopes", "returnUrl", "redirectUri", "apiKey", "apiSecret"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6663,6 +6663,27 @@ func (ec *executionContext) unmarshalInputInstallAppInput(ctx context.Context, o
 				return it, err
 			}
 			it.ReturnURL = data
+		case "redirectUri":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("redirectUri"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RedirectURI = data
+		case "apiKey":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APIKey = data
+		case "apiSecret":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("apiSecret"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.APISecret = data
 		}
 	}
 

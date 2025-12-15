@@ -1,18 +1,35 @@
+# NOTE: These are example Kubernetes manifests for reference.
+# The actual deployment uses Helm charts (see helm-chart/ directory).
+# These files are kept for reference or manual deployment scenarios.
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: shopify-config
+  name: archie-core-shopify-layer-config
+  namespace: archie-core
+  labels:
+    app: archie-core-shopify-layer
+    project: archie-core
 data:
-  MONGODB_DATABASE: "shopify_prod"
-  APP_URL: "https://your-domain.com"
   PORT: "8080"
+  ENVIRONMENT: "development"
+  MONGODB_DATABASE: "shopify_layer"
+  REDIS_ENABLED: "false"
+  APP_URL: "https://archie-core-shopify.dev.archie-platform.com"
+  LOG_LEVEL: "info"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: shopify-secrets
+  name: archie-core-shopify-layer-secrets
+  namespace: archie-core
+  labels:
+    app: archie-core-shopify-layer
+    project: archie-core
 type: Opaque
 stringData:
-  mongodb-uri: "mongodb://username:password@mongodb:27017"
-  api-key: "your-shopify-api-key"
-  api-secret: "your-shopify-api-secret"
+  MONGODB_URI: "mongodb://root:r4LTFBzT87ftKflR8zVwRro98MXzyEPWHtYASeiP@mongo-8base.8basedev.com:27017/shopify_dev?authSource=admin&authMechanism=SCRAM-SHA-1"
+  ENCRYPTION_KEY: "hTOdwbAy1v1SFP8o0TzwTLcsJ16TY1c8"
+  SHOPIFY_API_KEY: "your-shopify-api-key"
+  SHOPIFY_API_SECRET: "your-shopify-api-secret"
+  REDIS_URL: "redis://redis:6379"

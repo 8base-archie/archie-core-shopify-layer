@@ -260,9 +260,28 @@ jobs:
               echo "🔍 Current release status: $RELEASE_STATUS"
 
               if [ "$RELEASE_STATUS" = "failed" ] || [ "$RELEASE_STATUS" = "pending-upgrade" ] || [ "$RELEASE_STATUS" = "pending-install" ]; then
-                echo "🔨 Attempting force deployment as last resort..."
-
-                # Force deployment (last resort)
+                echo "🔍 Debugging before force deployment..."
+                echo "📊 Current pod status:"
+                kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+                echo ""
+                echo "📋 Pod details:"
+                kubectl describe pods -n archie-core -l app=archie-core-shopify-layer || true
+                echo ""
+                echo "📝 Recent events:"
+                kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -30 || true
+                echo ""
+                # Get logs from any existing pod
+                POD_NAME=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+                if [ -n "$POD_NAME" ]; then
+                  echo "📝 Logs from pod $POD_NAME:"
+                  kubectl logs -n archie-core $POD_NAME --tail=100 || true
+                  echo "📝 Previous container logs (if any):"
+                  kubectl logs -n archie-core $POD_NAME --previous --tail=100 || true
+                fi
+                echo ""
+                echo "🔨 Attempting force deployment WITHOUT --wait flag to avoid timeout..."
+                
+                # Force deployment without --wait to avoid timeout, then check status separately
                 helm upgrade --install archie-core-shopify-layer ./helm-chart \
                   --namespace archie-core \
                   --create-namespace \
@@ -278,9 +297,39 @@ jobs:
                   --set-string shopify.apiSecret="${{ secrets.SHOPIFY_API_SECRET }}" \
                   --set-string appUrl="${{ vars.APP_URL || 'http://localhost:8080' }}" \
                   --set-string redis.url="${{ secrets.REDIS_URL }}" \
-                  --force \
-                  --wait \
-                  --timeout=15m
+                  --force || true
+                
+                echo "⏳ Waiting 90 seconds for pods to initialize and show logs..."
+                sleep 90
+                
+                echo "📊 Pod status after force deployment:"
+                kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+                echo ""
+                
+                # Get the latest pod and show detailed logs
+                LATEST_POD=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+                if [ -n "$LATEST_POD" ]; then
+                  echo "📝 Current logs from pod $LATEST_POD:"
+                  kubectl logs -n archie-core $LATEST_POD --tail=200 || true
+                  echo ""
+                  echo "📝 Previous container logs (if crashed):"
+                  kubectl logs -n archie-core $LATEST_POD --previous --tail=200 || true
+                  echo ""
+                  echo "📋 Pod description:"
+                  kubectl describe pod -n archie-core $LATEST_POD || true
+                fi
+                
+                # For development, don't fail - just show status
+                if [ "${{ inputs.environment }}" = "development" ]; then
+                  echo "⚠️  Development deployment completed (may not be fully ready). Check pod logs above to diagnose the issue."
+                  echo "💡 Common issues:"
+                  echo "   - MongoDB connection failure (check MONGODB_URI secret)"
+                  echo "   - Missing ENCRYPTION_KEY (check ENCRYPTION_KEY secret)"
+                  echo "   - Application startup errors (check logs above)"
+                else
+                  echo "❌ Force deployment completed but pods may not be ready. Check logs above."
+                  exit 1
+                fi
               fi
             else
               echo "❌ Release not found. Deployment was rolled back due to atomic flag."

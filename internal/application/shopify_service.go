@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -177,6 +178,16 @@ func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scope
 		Msg("Generating OAuth URL with scopes")
 
 	// Use provided redirectURI (should point to archie-app callback endpoint)
+	// IMPORTANT: Remove any query parameters from redirectURI - Shopify requires exact match
+	// projectId and environment are encoded in the state parameter instead
+	if redirectURI != "" {
+		// Parse URL and remove query parameters
+		if parsedURL, err := url.Parse(redirectURI); err == nil {
+			parsedURL.RawQuery = ""
+			redirectURI = parsedURL.String()
+		}
+	}
+
 	// Fallback: dynamically generate redirect URI using project ID and environment from context
 	if redirectURI == "" {
 		// Get project ID and environment from context
@@ -193,13 +204,8 @@ func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scope
 			baseURL = "http://localhost:3000"
 		}
 
-		// Construct redirect URI dynamically
-		if projectID != "" && environment != "" {
-			redirectURI = fmt.Sprintf("%s/api/shopify/callback?projectId=%s&environment=%s", baseURL, projectID, environment)
-		} else {
-			// Fallback if project ID or environment not available
-			redirectURI = fmt.Sprintf("%s/api/shopify/callback", baseURL)
-		}
+		// Construct redirect URI dynamically (NO query parameters - they're in state)
+		redirectURI = fmt.Sprintf("%s/api/shopify/callback", baseURL)
 
 		s.logger.Warn().
 			Str("fallback_redirect_uri", redirectURI).

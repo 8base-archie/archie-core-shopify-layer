@@ -14,7 +14,9 @@ import (
 	"archie-core-shopify-layer/internal/infrastructure/pubsub"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -63,12 +65,25 @@ func (r *mutationResolver) ShopifyInstallApp(ctx context.Context, input model.In
 		environment = domain.DefaultEnvironment
 	}
 
-	// Generate random state for CSRF protection
+	// Generate random state for CSRF protection and encode projectId/environment
+	// Format: base64(json({random: "...", projectId: "...", environment: "..."}))
 	stateBytes := make([]byte, 16)
 	if _, err := rand.Read(stateBytes); err != nil {
 		return nil, fmt.Errorf("failed to generate state: %w", err)
 	}
-	state := hex.EncodeToString(stateBytes)
+	randomPart := hex.EncodeToString(stateBytes)
+
+	// Encode projectId and environment in state as JSON, then base64
+	stateData := map[string]string{
+		"random":      randomPart,
+		"projectId":   projectID,
+		"environment": environment,
+	}
+	stateJSON, err := json.Marshal(stateData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal state: %w", err)
+	}
+	state := base64.URLEncoding.EncodeToString(stateJSON)
 
 	// Get return URL (default to frontend URL if not provided)
 	returnURL := input.ReturnURL

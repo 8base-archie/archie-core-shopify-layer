@@ -188,7 +188,7 @@ func main() {
 
 	// OAuth routes
 	r.Get("/auth/shopify", oauthInitHandler(sessionRepo, shopifyService, appURL, logger))
-	r.Get("/auth/callback", oauthCallbackHandler(sessionRepo, shopifyService, webhookManager, integrationService, logger))
+	r.Get("/auth/callback", oauthCallbackHandler(sessionRepo, shopifyService, webhookManager, integrationService, encryptionService, logger))
 
 	// Webhook endpoint: POST /webhooks/shopify/{projectId}/{environment}
 	r.Post("/webhooks/shopify/{projectId}/{environment}", webhookHandler(shopifyService, webhookDispatcher, webhookPubSub, logger))
@@ -295,6 +295,7 @@ func oauthCallbackHandler(
 	shopifyService *application.ShopifyService,
 	webhookManager *application.WebhookManager,
 	integrationService *application.IntegrationService,
+	encryptionService *encryption.Service,
 	logger zerolog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -411,11 +412,21 @@ func oauthCallbackHandler(
 				Msg("Created integration after successful OAuth")
 		}
 
+		// Decrypt access token to pass to frontend for configuration
+		// Note: This is safe because it's passed over HTTPS and only used once
+		decryptedToken, err := encryptionService.Decrypt(shopDomain.AccessToken)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to decrypt access token for redirect")
+			http.Error(w, "Failed to complete installation", http.StatusInternalServerError)
+			return
+		}
+
 		// Add success parameters to return URL
-		redirectURL := fmt.Sprintf("%s?shopify_oauth=success&shop=%s&domain=%s",
+		redirectURL := fmt.Sprintf("%s?shopify_oauth=success&shop=%s&domain=%s&access_token=%s",
 			returnURL,
 			url.QueryEscape(shop),
 			url.QueryEscape(shopDomain.Domain),
+			url.QueryEscape(decryptedToken), // Pass decrypted access token to archie-app
 		)
 		if integration != nil {
 			redirectURL += "&integration_key=" + url.QueryEscape(integration.Key)

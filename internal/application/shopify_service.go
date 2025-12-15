@@ -177,13 +177,35 @@ func (s *ShopifyService) GenerateAuthURL(ctx context.Context, shop string, scope
 		Msg("Generating OAuth URL with scopes")
 
 	// Use provided redirectURI (should point to archie-app callback endpoint)
-	// Fallback to APP_URL if not provided (for backward compatibility)
+	// Fallback: dynamically generate redirect URI using project ID and environment from context
 	if redirectURI == "" {
-		appURL := strings.TrimSuffix(s.webhookBaseURL, "/webhooks/shopify")
-		redirectURI = appURL + "/auth/callback"
+		// Get project ID and environment from context
+		projectID := domain.GetProjectIDFromContext(ctx)
+		environment := domain.GetEnvironmentFromContext(ctx)
+
+		// Get base URL from environment variable or default to localhost:3000
+		baseURL := os.Getenv("FRONTEND_URL")
+		if baseURL == "" {
+			baseURL = os.Getenv("APP_URL")
+		}
+		if baseURL == "" {
+			baseURL = "http://localhost:3000"
+		}
+
+		// Construct redirect URI dynamically
+		if projectID != "" && environment != "" {
+			redirectURI = fmt.Sprintf("%s/api/shopify/callback?projectId=%s&environment=%s", baseURL, projectID, environment)
+		} else {
+			// Fallback if project ID or environment not available
+			redirectURI = fmt.Sprintf("%s/api/shopify/callback", baseURL)
+		}
+
 		s.logger.Warn().
 			Str("fallback_redirect_uri", redirectURI).
-			Msg("No redirectURI provided, using fallback from APP_URL")
+			Str("project_id", projectID).
+			Str("environment", environment).
+			Str("base_url", baseURL).
+			Msg("No redirectURI provided, using dynamically generated fallback")
 	}
 
 	authURL, err := client.GenerateAuthURL(shop, scopes, redirectURI, state)

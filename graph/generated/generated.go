@@ -1155,6 +1155,7 @@ type InstallAppPayload {
 input ExchangeTokenInput {
   shop: String!
   code: String!
+  state: String  # Optional: used to retrieve redirect_uri from session
 }
 
 # Payload returned after token exchange
@@ -6601,7 +6602,7 @@ func (ec *executionContext) unmarshalInputExchangeTokenInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"shop", "code"}
+	fieldsInOrder := [...]string{"shop", "code", "state"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6622,6 +6623,13 @@ func (ec *executionContext) unmarshalInputExchangeTokenInput(ctx context.Context
 				return it, err
 			}
 			it.Code = data
+		case "state":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("state"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.State = data
 		}
 	}
 

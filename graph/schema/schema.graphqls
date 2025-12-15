@@ -86,19 +86,6 @@ type InstallAppPayload {
   authUrl: String!
 }
 
-# Input for exchanging authorization code for access token
-input ExchangeTokenInput {
-  shop: String!
-  code: String!
-  state: String  # Optional: used to retrieve redirect_uri from session
-}
-
-# Payload returned after token exchange
-type ExchangeTokenPayload {
-  shop: Shop!
-  accessToken: String!
-}
-
 # ShopifyConfig represents Shopify configuration
 type ShopifyConfig {
   id: ID!
@@ -131,6 +118,18 @@ input CreateIntegrationInput {
 # Payload returned after creating an integration
 type CreateIntegrationPayload {
   integration: Integration!
+}
+
+# Input for saving shop data (OAuth callback)
+input SaveShopInput {
+  domain: String!
+  accessToken: String!
+  scopes: [String!]!
+}
+
+# Payload returned after saving shop
+type SaveShopPayload {
+  shop: Shop!
 }
 
 # Input for configuring Shopify
@@ -201,7 +200,7 @@ type Mutation {
   
   # Auth operations
   shopify_installApp(input: InstallAppInput!): InstallAppPayload!
-  shopify_exchangeToken(input: ExchangeTokenInput!): ExchangeTokenPayload!
+  shopify_saveShop(input: SaveShopInput!): SaveShopPayload!
   
   # Credentials operations (deprecated - use configureShopify)
   shopify_configureCredentials(input: ConfigureCredentialsInput!): ConfigureCredentialsPayload!

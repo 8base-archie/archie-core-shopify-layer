@@ -109,7 +109,6 @@ type ComplexityRoot struct {
 		DeleteIntegration           func(childComplexity int, key string) int
 		ShopifyConfigureCredentials func(childComplexity int, input model.ConfigureCredentialsInput) int
 		ShopifyDeleteCredentials    func(childComplexity int, projectID string, environment string) int
-		ShopifyExchangeToken        func(childComplexity int, input model.ExchangeTokenInput) int
 		ShopifyInstallApp           func(childComplexity int, input model.InstallAppInput) int
 	}
 
@@ -202,7 +201,6 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	ConfigureShopify(ctx context.Context, input model.ConfigureShopifyInput) (*model.ConfigureShopifyPayload, error)
 	ShopifyInstallApp(ctx context.Context, input model.InstallAppInput) (*model.InstallAppPayload, error)
-	ShopifyExchangeToken(ctx context.Context, input model.ExchangeTokenInput) (*model.ExchangeTokenPayload, error)
 	ShopifyConfigureCredentials(ctx context.Context, input model.ConfigureCredentialsInput) (*model.ConfigureCredentialsPayload, error)
 	ShopifyDeleteCredentials(ctx context.Context, projectID string, environment string) (bool, error)
 	CreateIntegration(ctx context.Context, input model.CreateIntegrationInput) (*model.CreateIntegrationPayload, error)
@@ -495,17 +493,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ShopifyDeleteCredentials(childComplexity, args["projectId"].(string), args["environment"].(string)), true
-	case "Mutation.shopify_exchangeToken":
-		if e.complexity.Mutation.ShopifyExchangeToken == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_shopify_exchangeToken_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.ShopifyExchangeToken(childComplexity, args["input"].(model.ExchangeTokenInput)), true
 	case "Mutation.shopify_installApp":
 		if e.complexity.Mutation.ShopifyInstallApp == nil {
 			break
@@ -1362,17 +1349,6 @@ func (ec *executionContext) field_Mutation_shopify_deleteCredentials_args(ctx co
 		return nil, err
 	}
 	args["environment"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_shopify_exchangeToken_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNExchangeTokenInput2archieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐExchangeTokenInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
 	return args, nil
 }
 
@@ -2644,53 +2620,6 @@ func (ec *executionContext) fieldContext_Mutation_shopify_installApp(ctx context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_shopify_installApp_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_shopify_exchangeToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_shopify_exchangeToken,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().ShopifyExchangeToken(ctx, fc.Args["input"].(model.ExchangeTokenInput))
-		},
-		nil,
-		ec.marshalNExchangeTokenPayload2ᚖarchieᚑcoreᚑshopifyᚑlayerᚋgraphᚋmodelᚐExchangeTokenPayload,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_shopify_exchangeToken(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "shop":
-				return ec.fieldContext_ExchangeTokenPayload_shop(ctx, field)
-			case "accessToken":
-				return ec.fieldContext_ExchangeTokenPayload_accessToken(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ExchangeTokenPayload", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_shopify_exchangeToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7178,13 +7107,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "shopify_installApp":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_shopify_installApp(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "shopify_exchangeToken":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_shopify_exchangeToken(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

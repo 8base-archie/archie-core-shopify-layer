@@ -78,6 +78,16 @@ type InstallAppPayload struct {
 	AuthURL string `json:"authUrl"`
 }
 
+type SaveShopInput struct {
+	Domain      string   `json:"domain"`
+	AccessToken string   `json:"accessToken"`
+	Scopes      []string `json:"scopes"`
+}
+
+type SaveShopPayload struct {
+	Shop *Shop `json:"shop"`
+}
+
 type Integration struct {
 	ID          string       `json:"id"`
 	Key         string       `json:"key"`

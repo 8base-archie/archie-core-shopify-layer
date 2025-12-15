@@ -142,38 +142,22 @@ func (r *mutationResolver) ShopifyInstallApp(ctx context.Context, input model.In
 	}, nil
 }
 
-// ShopifyExchangeToken is the resolver for the shopify_exchangeToken field.
-func (r *mutationResolver) ShopifyExchangeToken(ctx context.Context, input model.ExchangeTokenInput) (*model.ExchangeTokenPayload, error) {
-	// Retrieve redirectURI from session if state is provided
-	var redirectURI string
-	if input.State != nil && *input.State != "" {
-		session, err := r.sessionRepo.GetSession(ctx, *input.State)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve session: %w", err)
-		}
-		if session != nil && session.RedirectURI != "" {
-			redirectURI = session.RedirectURI
-			fmt.Printf("✅ [ShopifyExchangeToken] Retrieved redirectURI from session: %s\n", redirectURI)
-		} else {
-			fmt.Printf("⚠️ [ShopifyExchangeToken] Session not found or redirectURI not stored for state: %s\n", *input.State)
-		}
-	}
-
-	// ExchangeToken doesn't receive apiKey/apiSecret from input - it uses config from database or global env vars
-	shop, err := r.shopifyService.ExchangeToken(ctx, input.Shop, input.Code, redirectURI, nil, nil)
+// ShopifySaveShop is the resolver for the shopify_saveShop field.
+func (r *mutationResolver) ShopifySaveShop(ctx context.Context, input model.SaveShopInput) (*model.SaveShopPayload, error) {
+	// Use ShopifyService to save shop (it handles encryption internally)
+	domainShop, err := r.shopifyService.SaveShop(ctx, input.Domain, input.AccessToken, input.Scopes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &model.ExchangeTokenPayload{
+	return &model.SaveShopPayload{
 		Shop: &model.Shop{
-			ID:        shop.ID,
-			Domain:    shop.Domain,
-			Scopes:    shop.Scopes,
-			CreatedAt: scalars.Time(shop.CreatedAt),
-			UpdatedAt: scalars.Time(shop.UpdatedAt),
+			ID:        domainShop.ID,
+			Domain:    domainShop.Domain,
+			Scopes:    domainShop.Scopes,
+			CreatedAt: scalars.Time(domainShop.CreatedAt),
+			UpdatedAt: scalars.Time(domainShop.UpdatedAt),
 		},
-		AccessToken: shop.AccessToken,
 	}, nil
 }
 

@@ -326,6 +326,32 @@ func (s *ShopifyService) ExchangeToken(ctx context.Context, shop string, code st
 	return domainShop, nil
 }
 
+// SaveShop saves shop data with access token and scopes
+func (s *ShopifyService) SaveShop(ctx context.Context, shopDomain string, accessToken string, scopes []string) (*domain.Shop, error) {
+	// Encrypt access token before storage
+	encryptedToken, err := s.encryptionSvc.Encrypt(accessToken)
+	if err != nil {
+		s.logger.Error().Err(err).Str("domain", shopDomain).Msg("Failed to encrypt access token")
+		return nil, fmt.Errorf("failed to encrypt access token: %w", err)
+	}
+
+	// Create domain shop entity
+	domainShop := &domain.Shop{
+		Domain:      shopDomain,
+		AccessToken: encryptedToken, // Store encrypted token
+		Scopes:      scopes,
+	}
+
+	// Save shop to repository
+	if err := s.repository.SaveShop(ctx, domainShop); err != nil {
+		s.logger.Error().Err(err).Str("domain", shopDomain).Msg("Failed to save shop")
+		return nil, fmt.Errorf("failed to save shop: %w", err)
+	}
+
+	s.logger.Info().Str("domain", shopDomain).Msg("Shop saved successfully")
+	return domainShop, nil
+}
+
 // GetShop retrieves shop information
 func (s *ShopifyService) GetShop(ctx context.Context, domain string) (*domain.Shop, error) {
 	shop, err := s.repository.GetShop(ctx, domain)

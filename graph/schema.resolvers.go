@@ -101,10 +101,25 @@ func (r *mutationResolver) ShopifyInstallApp(ctx context.Context, input model.In
 		apiSecret = input.APISecret
 	}
 	
+	// Debug: Log the entire input to see what we received
+	fmt.Printf("🔍 [ShopifyInstallApp] Received input - Shop: %s, RedirectURI: %v\n", input.Shop, input.RedirectURI)
+	if input.RedirectURI != nil {
+		fmt.Printf("🔍 [ShopifyInstallApp] RedirectURI value: '%s'\n", *input.RedirectURI)
+	}
+	
 	// Use redirectUri from input if provided, otherwise it will fallback to APP_URL in GenerateAuthURL
 	redirectURI := ""
-	if input.RedirectURI != nil {
+	if input.RedirectURI != nil && *input.RedirectURI != "" {
 		redirectURI = *input.RedirectURI
+		fmt.Printf("✅ [ShopifyInstallApp] Using provided redirectURI: %s\n", redirectURI)
+	} else {
+		// Debug logging to understand why redirectURI is empty
+		if input.RedirectURI == nil {
+			fmt.Printf("⚠️ [ShopifyInstallApp] RedirectURI is nil (field not provided or was null)\n")
+		} else if *input.RedirectURI == "" {
+			fmt.Printf("⚠️ [ShopifyInstallApp] RedirectURI is empty string (field was provided but empty)\n")
+		}
+		fmt.Printf("⚠️ [ShopifyInstallApp] Falling back to APP_URL for redirectURI\n")
 	}
 	
 	authURL, err := r.shopifyService.GenerateAuthURL(ctx, input.Shop, input.Scopes, state, redirectURI, apiKey, apiSecret)

@@ -262,16 +262,16 @@ jobs:
               if [ "$RELEASE_STATUS" = "failed" ] || [ "$RELEASE_STATUS" = "pending-upgrade" ] || [ "$RELEASE_STATUS" = "pending-install" ]; then
                 echo "🔍 Debugging before force deployment..."
                 echo "📊 Current pod status:"
-                kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+                kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o wide || true
                 echo ""
                 echo "📋 Pod details:"
-                kubectl describe pods -n archie-core -l app=archie-core-shopify-layer || true
+                kubectl describe pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer || true
                 echo ""
                 echo "📝 Recent events:"
                 kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -30 || true
                 echo ""
                 # Get logs from any existing pod
-                POD_NAME=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+                POD_NAME=$(kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
                 if [ -n "$POD_NAME" ]; then
                   echo "📝 Logs from pod $POD_NAME:"
                   kubectl logs -n archie-core $POD_NAME --tail=100 || true
@@ -303,11 +303,11 @@ jobs:
                 sleep 90
                 
                 echo "📊 Pod status after force deployment:"
-                kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+                kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o wide || true
                 echo ""
                 
                 # Get the latest pod and show detailed logs
-                LATEST_POD=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
+                LATEST_POD=$(kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || echo "")
                 if [ -n "$LATEST_POD" ]; then
                   echo "📝 Current logs from pod $LATEST_POD:"
                   kubectl logs -n archie-core $LATEST_POD --tail=200 || true
@@ -337,14 +337,14 @@ jobs:
               
               # Show current pod status for debugging
               echo "📊 Current pod status:"
-              kubectl get pods -n archie-core -l app=archie-core-shopify-layer || echo "No pods found"
+              kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer || echo "No pods found"
               
               # Show recent events
               echo "📋 Recent events in namespace:"
               kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -20 || true
               
               # Try to get any existing pod logs
-              EXISTING_POD=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+              EXISTING_POD=$(kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
               if [ -n "$EXISTING_POD" ]; then
                 echo "📝 Logs from pod $EXISTING_POD:"
                 kubectl logs -n archie-core $EXISTING_POD --tail=50 || true
@@ -375,16 +375,16 @@ jobs:
         run: |
           echo "🔍 Debugging deployment failure..."
           echo "📊 Pod status:"
-          kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o wide || true
+          kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o wide || true
           echo ""
           echo "📋 Pod details:"
-          kubectl describe pods -n archie-core -l app=archie-core-shopify-layer || true
+          kubectl describe pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer || true
           echo ""
           echo "📝 Recent events:"
           kubectl get events -n archie-core --sort-by='.lastTimestamp' | tail -30 || true
           echo ""
           # Try to get logs from any pod
-          POD_NAME=$(kubectl get pods -n archie-core -l app=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          POD_NAME=$(kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
           if [ -n "$POD_NAME" ]; then
             echo "📝 Logs from pod $POD_NAME:"
             kubectl logs -n archie-core $POD_NAME --tail=100 || true
@@ -393,9 +393,9 @@ jobs:
       - name: ✅ Verify deployment
         run: |
           echo "✅ ${{ inputs.environment }} deployment completed successfully!"
-          kubectl get pods -n archie-core -l app=archie-core-shopify-layer
-          kubectl get services -n archie-core -l app=archie-core-shopify-layer
-          kubectl get hpa -n archie-core -l app=archie-core-shopify-layer
+          kubectl get pods -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer
+          kubectl get services -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer
+          kubectl get hpa -n archie-core -l app.kubernetes.io/name=archie-core-shopify-layer
 
       - name: 🧪 Basic deployment verification
         run: |
@@ -403,7 +403,7 @@ jobs:
           
           # Just wait for pods to be ready (basic verification)
           echo "⏳ Waiting for pods to be ready..."
-          kubectl wait --for=condition=ready pod -l app=archie-core-shopify-layer -n archie-core --timeout=300s
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=archie-core-shopify-layer -n archie-core --timeout=300s
           
           echo "✅ All pods are ready - deployment successful!"
 

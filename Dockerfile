@@ -18,6 +18,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Generate GraphQL code (gqlgen)
+RUN go run github.com/99designs/gqlgen generate
+
 # Build the application
 # CGO_ENABLED=0 for static binary, -ldflags for smaller binary size
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \

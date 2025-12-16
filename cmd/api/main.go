@@ -22,6 +22,7 @@ import (
 	"archie-core-shopify-layer/internal/infrastructure/pubsub"
 	"archie-core-shopify-layer/internal/infrastructure/repository"
 	shopifyinfra "archie-core-shopify-layer/internal/infrastructure/shopify"
+	"archie-core-shopify-layer/internal/ports"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -172,6 +173,9 @@ func main() {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+
+	// Validation endpoint - checks if project ID exists and can make requests
+	r.Get("/validate-project", validateProjectHandler(configRepo, logger))
 
 	// Swagger documentation - public
 	r.Get("/swagger/*", httpSwagger.Handler(
@@ -627,5 +631,65 @@ func createTenantIDMiddleware(integrationService *application.IntegrationService
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
+	}
+}
+
+// validateProjectHandler validates that a project ID exists and can make requests
+func validateProjectHandler(configRepo ports.ShopifyConfigRepository, logger zerolog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		projectID := r.Header.Get("X-Project-ID")
+		environment := r.Header.Get("environment")
+		if environment == "" {
+			environment = domain.DefaultEnvironment
+		}
+
+		if projectID == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"valid": false,
+				"error": "X-Project-ID header is required",
+			})
+			return
+		}
+
+		// Create context with project ID
+		ctx := domain.WithProjectID(r.Context(), projectID)
+		ctx = domain.WithEnvironment(ctx, environment)
+
+		// Check if project exists by trying to get config
+		config, err := configRepo.GetByTenantID(ctx, projectID)
+		if err != nil {
+			logger.Error().Err(err).Str("projectID", projectID).Msg("Failed to get project config")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"valid":     false,
+				"error":     "Failed to check project",
+				"projectID": projectID,
+				"details":   err.Error(),
+			})
+			return
+		}
+
+		response := map[string]interface{}{
+			"valid":       true,
+			"projectID":   projectID,
+			"environment": environment,
+			"hasConfig":   config != nil,
+		}
+
+		if config != nil {
+			response["config"] = map[string]interface{}{
+				"id":            config.ID,
+				"apiKey":        config.APIKey,
+				"hasWebhookURL": config.WebhookURL != "",
+			}
+		} else {
+			response["message"] = "Project exists but has no Shopify configuration. You can still make requests, but Shopify operations may fail until configured."
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
 }

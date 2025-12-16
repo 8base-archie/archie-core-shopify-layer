@@ -21,6 +21,16 @@ data:
   APP_URL: {{ .Values.appUrl | quote }}
   {{- end }}
   
+  # Frontend URL Configuration (for OAuth callbacks)
+  {{- if .Values.frontendUrl }}
+  FRONTEND_URL: {{ .Values.frontendUrl | quote }}
+  {{- end }}
+  
+  # Next.js Public URL Configuration (fallback for OAuth callbacks)
+  {{- if .Values.nextPublicUrl }}
+  NEXT_PUBLIC_URL: {{ .Values.nextPublicUrl | quote }}
+  {{- end }}
+  
   # Logging Configuration
   LOG_LEVEL: {{ .Values.logging.level | quote }}
 

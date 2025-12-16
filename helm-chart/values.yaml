@@ -70,6 +70,12 @@ shopify:
 # Application URL configuration
 appUrl: '' # Set via --set-string in CI/CD
 
+# Frontend URL configuration (for OAuth callbacks)
+frontendUrl: '' # Set via --set-string in CI/CD (e.g., https://app.dev.archie-platform.com)
+
+# Next.js Public URL configuration (fallback for OAuth callbacks)
+nextPublicUrl: '' # Set via --set-string in CI/CD (e.g., https://app.dev.archie-platform.com)
+
 # Logging configuration
 logging:
   level: 'info'

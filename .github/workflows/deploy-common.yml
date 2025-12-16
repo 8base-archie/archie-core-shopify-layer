@@ -246,6 +246,8 @@ jobs:
             --set-string shopify.apiKey="${{ secrets.SHOPIFY_API_KEY }}" \
             --set-string shopify.apiSecret="${{ secrets.SHOPIFY_API_SECRET }}" \
             --set-string appUrl="${{ vars.APP_URL || 'http://localhost:8080' }}" \
+            --set-string frontendUrl="${{ vars.FRONTEND_URL }}" \
+            --set-string nextPublicUrl="${{ vars.NEXT_PUBLIC_URL }}" \
             --set-string redis.url="${{ secrets.REDIS_URL }}" \
             --wait \
             --timeout=$TIMEOUT \
@@ -296,6 +298,8 @@ jobs:
                   --set-string shopify.apiKey="${{ secrets.SHOPIFY_API_KEY }}" \
                   --set-string shopify.apiSecret="${{ secrets.SHOPIFY_API_SECRET }}" \
                   --set-string appUrl="${{ vars.APP_URL || 'http://localhost:8080' }}" \
+                  --set-string frontendUrl="${{ vars.FRONTEND_URL }}" \
+                  --set-string nextPublicUrl="${{ vars.NEXT_PUBLIC_URL }}" \
                   --set-string redis.url="${{ secrets.REDIS_URL }}" \
                   --force || true
                 
